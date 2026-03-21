@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+/* Limit content scanning to widget sources (avoids scanning unrelated paths). */
+@source "./**/*.{ts,tsx,js,jsx}";
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+/* Host iframes sometimes default to 0 height — give the widget a visible floor. */
+#chat-vault-root {
+  min-height: 54rem;
+}
