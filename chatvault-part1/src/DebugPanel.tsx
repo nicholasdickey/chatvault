@@ -1,3 +1,4 @@
+import type { App, McpUiDisplayMode } from "@modelcontextprotocol/ext-apps";
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { boundedJsonStringify } from "./chatvault-debug-serialize.js";
 import {
@@ -37,16 +38,78 @@ function detectEnvironmentToLog(): void {
   logWidget("env", `prefers-color-scheme ${dark ? "dark" : "light"}`);
 }
 
+const DEFAULT_DISPLAY_MODES: McpUiDisplayMode[] = [
+  "inline",
+  "fullscreen",
+  "pip",
+];
+
+function DisplayModeRequests({
+  app,
+  canRequest,
+  availableDisplayModes,
+}: {
+  app: App | null;
+  canRequest: boolean;
+  availableDisplayModes: McpUiDisplayMode[] | undefined;
+}) {
+  const modes =
+    availableDisplayModes && availableDisplayModes.length > 0
+      ? availableDisplayModes
+      : DEFAULT_DISPLAY_MODES;
+
+  const requestMode = useCallback(
+    async (mode: McpUiDisplayMode) => {
+      if (!app) {
+        return;
+      }
+      try {
+        const result = await app.requestDisplayMode({ mode });
+        logWidget(
+          "display",
+          `requestDisplayMode ${mode} ok mode=${String((result as { mode?: string }).mode ?? "?")}`,
+        );
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logWidget("display", `requestDisplayMode ${mode} failed: ${msg}`);
+      }
+    },
+    [app],
+  );
+
+  return (
+    <div className="mb-2 flex flex-wrap gap-1">
+      {modes.map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          disabled={!canRequest}
+          onClick={() => void requestMode(mode)}
+          className="rounded border border-slate-300 bg-white px-2 py-1 text-[10px] font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+        >
+          Request {mode}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function DebugPanel({
   hostToolResultSummaryJson,
   toolResultMetaJson,
   bootstrapMetaJson,
   envSummary,
+  displayModeControls,
 }: {
   hostToolResultSummaryJson: string | null;
   toolResultMetaJson: string | null;
   bootstrapMetaJson: string;
   envSummary: string;
+  displayModeControls?: {
+    app: App | null;
+    canRequest: boolean;
+    availableDisplayModes: McpUiDisplayMode[] | undefined;
+  };
 }) {
   const snapshot = useSyncExternalStore(
     subscribeWidgetLog,
@@ -138,6 +201,31 @@ export function DebugPanel({
           <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words border-t border-slate-200 p-2 font-mono text-[10px] text-slate-800 dark:border-slate-600 dark:text-slate-200">
             {bootstrapBlock}
           </pre>
+        </details>
+
+        <details className="rounded border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900">
+          <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+            Display mode (Prompt 10)
+          </summary>
+          <div className="border-t border-slate-200 p-2 dark:border-slate-600">
+            <p className="mb-2 text-[10px] text-[var(--cv-muted)]">
+              Uses <code className="text-[9px]">App.requestDisplayMode</code> (MCP
+              Apps SDK). Host may ignore unsupported modes.
+            </p>
+            {displayModeControls ? (
+              <DisplayModeRequests
+                app={displayModeControls.app}
+                canRequest={displayModeControls.canRequest}
+                availableDisplayModes={
+                  displayModeControls.availableDisplayModes
+                }
+              />
+            ) : (
+              <p className="text-[10px] text-[var(--cv-muted)]">
+                (controls only in embedded host)
+              </p>
+            )}
+          </div>
         </details>
 
         <details className="rounded border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900">

@@ -1,6 +1,20 @@
 import { useApp } from "@modelcontextprotocol/ext-apps/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { boundedJsonStringify } from "./chatvault-debug-serialize.js";
+import {
+  applyHostLayoutCssVars,
+  clearHostLayoutCssVars,
+  formatHostLayoutForEnvSummary,
+  pickHostLayoutFromContext,
+  type HostLayoutState,
+} from "./chatvault-host-layout.js";
 import {
   getWidgetClientTypeLabel,
   getWindowBridgeFlags,
@@ -85,6 +99,7 @@ export function ChatVaultApp() {
       ? document.documentElement.dataset.theme
       : undefined,
   );
+  const [hostLayout, setHostLayout] = useState<HostLayoutState>({});
 
   const standalone =
     typeof window !== "undefined" &&
@@ -93,8 +108,16 @@ export function ChatVaultApp() {
 
   const { app, isConnected, error } = useApp({
     appInfo: CHATVAULT_WIDGET_APP_INFO,
-    capabilities: {},
+    capabilities: {
+      availableDisplayModes: ["inline", "fullscreen", "pip"],
+    },
     onAppCreated: (a) => {
+      a.onhostcontextchanged = (params) => {
+        setHostLayout((prev) => ({
+          ...prev,
+          ...pickHostLayoutFromContext(params),
+        }));
+      };
       a.ontoolinput = (p) => {
         const ctx = parseBrowseContextFromArguments(p.arguments);
         browseRef.current = { ...browseRef.current, ...ctx };
@@ -122,6 +145,28 @@ export function ChatVaultApp() {
       }),
     [],
   );
+
+  useEffect(() => {
+    if (standalone || !app || !isConnected) {
+      return;
+    }
+    const full = app.getHostContext();
+    setHostLayout((prev) => ({
+      ...prev,
+      ...pickHostLayoutFromContext(full),
+    }));
+  }, [standalone, app, isConnected]);
+
+  useLayoutEffect(() => {
+    const el = document.documentElement;
+    if (standalone) {
+      clearHostLayoutCssVars(el);
+      el.classList.remove("cv-display-pip");
+      return;
+    }
+    applyHostLayoutCssVars(el, hostLayout);
+    el.classList.toggle("cv-display-pip", hostLayout.displayMode === "pip");
+  }, [standalone, hostLayout]);
 
   useEffect(() => {
     if (standalone) {
@@ -324,6 +369,7 @@ export function ChatVaultApp() {
           ? `${navigator.userAgent.slice(0, 117)}…`
           : navigator.userAgent
         : "(n/a)";
+    const layoutLines = formatHostLayoutForEnvSummary(hostLayout);
     return [
       `clientType: ${clientType}`,
       `data-theme: ${dataTheme ?? "(unset)"}`,
@@ -333,10 +379,11 @@ export function ChatVaultApp() {
       `window.appbridge: ${bridges.appbridge}`,
       `isConnected: ${isConnected}`,
       `serverTools: ${serverTools}`,
+      ...layoutLines,
       `browse: ${summarizeBrowseContext(browseCtx)}`,
       `userAgent: ${ua}`,
     ].join("\n");
-  }, [dataTheme, standalone, isConnected, app, browseCtx]);
+  }, [dataTheme, standalone, isConnected, app, browseCtx, hostLayout]);
 
   const waitingForHost =
     !standalone && !error && (!app || !isConnected) && loadState === "loading";
@@ -355,7 +402,7 @@ export function ChatVaultApp() {
       className={`box-border bg-[var(--cv-bg)] p-4 text-slate-800 dark:text-slate-100 ${
         standalone
           ? "min-h-screen"
-          : "flex h-full min-h-[54rem] max-h-[min(90dvh,72rem)] flex-1 flex-col overflow-hidden"
+          : "cv-app-shell flex h-full min-h-[54rem] flex-1 flex-col overflow-hidden"
       }`}
     >
       <WidgetErrorBoundary>
@@ -412,6 +459,15 @@ export function ChatVaultApp() {
           toolResultMetaJson={toolResultMetaJson}
           bootstrapMetaJson={bootstrapMetaJson}
           envSummary={envSummary}
+          displayModeControls={
+            standalone
+              ? undefined
+              : {
+                  app,
+                  canRequest: Boolean(app && isConnected),
+                  availableDisplayModes: hostLayout.availableDisplayModes,
+                }
+          }
         />
       </div>
     </div>
