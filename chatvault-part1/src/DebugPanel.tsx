@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { boundedJsonStringify } from "./chatvault-debug-serialize.js";
 import {
   formatLogLine,
   getWidgetLogSnapshot,
@@ -6,6 +7,10 @@ import {
   logWidget,
   subscribeWidgetLog,
 } from "./widget-log.js";
+import {
+  getOutboundToolLogSnapshot,
+  subscribeOutboundToolLog,
+} from "./widget-outbound-tool-log.js";
 
 function detectEnvironmentToLog(): void {
   logWidget("mount", "ChatVault widget mounted");
@@ -33,10 +38,12 @@ function detectEnvironmentToLog(): void {
 }
 
 export function DebugPanel({
+  hostToolResultSummaryJson,
   toolResultMetaJson,
   bootstrapMetaJson,
   envSummary,
 }: {
+  hostToolResultSummaryJson: string | null;
   toolResultMetaJson: string | null;
   bootstrapMetaJson: string;
   envSummary: string;
@@ -47,9 +54,22 @@ export function DebugPanel({
     getWidgetLogSnapshot,
   );
 
+  const outboundSnapshot = useSyncExternalStore(
+    subscribeOutboundToolLog,
+    getOutboundToolLogSnapshot,
+    getOutboundToolLogSnapshot,
+  );
+
+  const hostFullBlock = useMemo(() => {
+    if (!hostToolResultSummaryJson || hostToolResultSummaryJson.length === 0) {
+      return "(none yet — waiting for host ui/notifications/tool-result)";
+    }
+    return hostToolResultSummaryJson;
+  }, [hostToolResultSummaryJson]);
+
   const metaBlock = useMemo(() => {
     if (!toolResultMetaJson || toolResultMetaJson.length === 0) {
-      return "(none yet — waiting for tool result _meta from host)";
+      return "(none — no _meta on last host tool result yet)";
     }
     return toolResultMetaJson;
   }, [toolResultMetaJson]);
@@ -60,6 +80,13 @@ export function DebugPanel({
     }
     return bootstrapMetaJson;
   }, [bootstrapMetaJson]);
+
+  const outboundBlock = useMemo(() => {
+    if (outboundSnapshot.length === 0) {
+      return "(no loadMyChats attempts yet)";
+    }
+    return boundedJsonStringify([...outboundSnapshot]);
+  }, [outboundSnapshot]);
 
   useEffect(() => {
     detectEnvironmentToLog();
@@ -79,10 +106,28 @@ export function DebugPanel({
       <div className="space-y-2 border-t border-slate-200 px-2 py-2 dark:border-slate-700">
         <details className="rounded border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900">
           <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-400">
-            Host / tool _meta (last result)
+            Last host tool result (summary)
+          </summary>
+          <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words border-t border-slate-200 p-2 font-mono text-[10px] text-slate-800 dark:border-slate-600 dark:text-slate-200">
+            {hostFullBlock}
+          </pre>
+        </details>
+
+        <details className="rounded border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900">
+          <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+            Host _meta only (last tool result)
           </summary>
           <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words border-t border-slate-200 p-2 font-mono text-[10px] text-slate-800 dark:border-slate-600 dark:text-slate-200">
             {metaBlock}
+          </pre>
+        </details>
+
+        <details className="rounded border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900">
+          <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+            Widget → server tool calls (loadMyChats)
+          </summary>
+          <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words border-t border-slate-200 p-2 font-mono text-[10px] text-slate-800 dark:border-slate-600 dark:text-slate-200">
+            {outboundBlock}
           </pre>
         </details>
 
@@ -99,7 +144,7 @@ export function DebugPanel({
           <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-400">
             Environment
           </summary>
-          <pre className="max-h-32 overflow-auto whitespace-pre-wrap border-t border-slate-200 p-2 font-mono text-[10px] text-slate-800 dark:border-slate-600 dark:text-slate-200">
+          <pre className="max-h-40 overflow-auto whitespace-pre-wrap border-t border-slate-200 p-2 font-mono text-[10px] text-slate-800 dark:border-slate-600 dark:text-slate-200">
             {envSummary}
           </pre>
         </details>

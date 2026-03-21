@@ -16,6 +16,7 @@ function formatChatWhen(ts: string): string {
   }
 }
 
+/** Read-only saved-chat browser (Part 1): loads via MCP `loadMyChats` or local fixture only. */
 export function ChatHistoryPanel({
   chats,
   selected,
@@ -70,7 +71,7 @@ export function ChatHistoryPanel({
             rel="noopener noreferrer"
             className="mt-4 inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
           >
-            Open ChatVault app
+            Open full app
           </a>
         ) : null}
       </div>

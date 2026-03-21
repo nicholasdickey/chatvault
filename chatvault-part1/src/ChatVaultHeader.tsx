@@ -8,10 +8,10 @@ export function ChatVaultHeader({
   standalone: boolean;
 }) {
   const viewerLabel = standalone
-    ? "Local preview"
+    ? "Local preview (no MCP host)"
     : browse.shortAnonId
-      ? `Viewer ${browse.shortAnonId.slice(0, 16)}${browse.shortAnonId.length > 16 ? "…" : ""}`
-      : "Signed-in viewer";
+      ? `Viewer / user id: ${browse.shortAnonId.slice(0, 16)}${browse.shortAnonId.length > 16 ? "…" : ""}`
+      : "Signed-in viewer (no short id from host yet)";
 
   return (
     <header className="cv-surface rounded-xl border border-[var(--cv-border)] bg-[var(--cv-surface)] p-4 shadow-sm">

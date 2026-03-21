@@ -1,7 +1,12 @@
 import { useApp } from "@modelcontextprotocol/ext-apps/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { boundedJsonStringify } from "./chatvault-debug-serialize.js";
+import {
+  getWidgetClientTypeLabel,
+  getWindowBridgeFlags,
+} from "./chatvault-env.js";
 import { loadMyChatsFixture } from "./chatvault-fixtures.js";
+import { summarizeHostToolResultForDebug } from "./chatvault-host-tool-debug.js";
 import { ChatHistoryPanel } from "./ChatHistoryPanel.js";
 import { ChatVaultHeader } from "./ChatVaultHeader.js";
 import { DebugPanel } from "./DebugPanel.js";
@@ -17,6 +22,7 @@ import { installDataThemeListener } from "./chatvault-theme.js";
 import type { Chat, ChatVaultBrowseContext } from "./chatvault-types.js";
 import { CHATVAULT_WIDGET_APP_INFO } from "./chatvault-widget-meta.js";
 import { logToolCall, logWidget } from "./widget-log.js";
+import { recordOutboundLoadMyChats } from "./widget-outbound-tool-log.js";
 import { WidgetErrorBoundary } from "./WidgetErrorBoundary.js";
 
 /** Fixed `userId` when host does not supply `shortAnonId` (Prompt 7 — widget does not set credentials). */
@@ -39,11 +45,36 @@ function metaKeys(result: { _meta?: unknown }): string {
   return "";
 }
 
+function recordLoadMyChatsOutbound(args: {
+  method: "callServerTool" | "fixture";
+  userId: string;
+  cursor?: string | null;
+  outcome: string;
+  chatCount: number;
+  nextCursor: string | null;
+}): void {
+  recordOutboundLoadMyChats({
+    method: args.method,
+    toolName: "loadMyChats",
+    args: {
+      userId: args.userId,
+      ...(args.cursor !== undefined && args.cursor !== null && args.cursor !== ""
+        ? { cursor: args.cursor }
+        : {}),
+    },
+    outcome: args.outcome,
+    resultShape: { chatCount: args.chatCount, nextCursor: args.nextCursor },
+  });
+}
+
 export function ChatVaultApp() {
   const browseRef = useRef<ChatVaultBrowseContext>({});
   const [browseEpoch, setBrowseEpoch] = useState(0);
   const [browseCtx, setBrowseCtx] = useState<ChatVaultBrowseContext>({});
-  const [lastToolMeta, setLastToolMeta] = useState<unknown>(null);
+  const [lastHostToolDebug, setLastHostToolDebug] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
   const [chats, setChats] = useState<Chat[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "ready">("loading");
@@ -72,7 +103,7 @@ export function ChatVaultApp() {
         setBrowseEpoch((n) => n + 1);
       };
       a.ontoolresult = (r) => {
-        setLastToolMeta(r._meta ?? null);
+        setLastHostToolDebug(summarizeHostToolResultForDebug(r));
         const fromMeta = parseChatVaultFromToolResult(r);
         if (Object.keys(fromMeta).length > 0) {
           browseRef.current = { ...browseRef.current, ...fromMeta };
@@ -125,6 +156,13 @@ export function ChatVaultApp() {
           setChats(data.chats);
           setNextCursor(data.nextCursor);
           setLoadState("ready");
+          recordLoadMyChatsOutbound({
+            method: "fixture",
+            userId: WIDGET_DEFAULT_USER_ID,
+            outcome: "standalone_fixture",
+            chatCount: data.chats.length,
+            nextCursor: data.nextCursor,
+          });
           logToolCall(
             "loadMyChats",
             `fixture userId=${WIDGET_DEFAULT_USER_ID} cursor=none -> chats=${data.chats.length} next=${data.nextCursor ?? "null"}`,
@@ -145,6 +183,13 @@ export function ChatVaultApp() {
             setChats(data.chats);
             setNextCursor(data.nextCursor);
             setLoadState("ready");
+            recordLoadMyChatsOutbound({
+              method: "fixture",
+              userId: WIDGET_DEFAULT_USER_ID,
+              outcome: "host_error_fixture",
+              chatCount: data.chats.length,
+              nextCursor: data.nextCursor,
+            });
             logToolCall(
               "loadMyChats",
               `fixture after host error userId=${WIDGET_DEFAULT_USER_ID} -> chats=${data.chats.length} next=${data.nextCursor ?? "null"}`,
@@ -171,7 +216,7 @@ export function ChatVaultApp() {
       const userId =
         browseRef.current.shortAnonId?.trim() || WIDGET_DEFAULT_USER_ID;
       logWidget("loadMyChats", `request userId=${userId}`);
-      const { source, data } = await loadChatsForWidget(
+      const { source, data, mockReason } = await loadChatsForWidget(
         app,
         isConnected,
         userId,
@@ -180,6 +225,17 @@ export function ChatVaultApp() {
         setChats(data.chats);
         setNextCursor(data.nextCursor);
         setLoadState("ready");
+        const outcome =
+          source === "mcp"
+            ? "mcp_ok"
+            : `mock:${mockReason ?? "unknown"}`;
+        recordLoadMyChatsOutbound({
+          method: "callServerTool",
+          userId,
+          outcome,
+          chatCount: data.chats.length,
+          nextCursor: data.nextCursor,
+        });
         logToolCall(
           "loadMyChats",
           `callServerTool name=loadMyChats userId=${userId} cursor=none source=${source} -> chats=${data.chats.length} nextCursor=${data.nextCursor ?? "null"}`,
@@ -204,7 +260,7 @@ export function ChatVaultApp() {
       browseRef.current.shortAnonId?.trim() || WIDGET_DEFAULT_USER_ID;
     setLoadingMore(true);
     try {
-      const { source, data } = await loadChatsForWidget(
+      const { source, data, mockReason } = await loadChatsForWidget(
         app,
         isConnected,
         userId,
@@ -212,6 +268,16 @@ export function ChatVaultApp() {
       );
       setChats((prev) => mergeChats(prev, data.chats));
       setNextCursor(data.nextCursor);
+      const outcome =
+        source === "mcp" ? "mcp_ok" : `mock:${mockReason ?? "unknown"}`;
+      recordLoadMyChatsOutbound({
+        method: "callServerTool",
+        userId,
+        cursor: nextCursor,
+        outcome,
+        chatCount: data.chats.length,
+        nextCursor: data.nextCursor,
+      });
       logToolCall(
         "loadMyChats",
         `callServerTool name=loadMyChats userId=${userId} cursor=${nextCursor} source=${source} -> +${data.chats.length} nextCursor=${data.nextCursor ?? "null"}`,
@@ -225,12 +291,20 @@ export function ChatVaultApp() {
     }
   }, [nextCursor, loadingMore, app, isConnected]);
 
-  const toolResultMetaJson = useMemo((): string | null => {
-    if (lastToolMeta === null || lastToolMeta === undefined) {
+  const hostToolResultSummaryJson = useMemo((): string | null => {
+    if (!lastHostToolDebug) {
       return null;
     }
-    return boundedJsonStringify(lastToolMeta);
-  }, [lastToolMeta]);
+    return boundedJsonStringify(lastHostToolDebug);
+  }, [lastHostToolDebug]);
+
+  const toolResultMetaJson = useMemo((): string | null => {
+    const m = lastHostToolDebug?._meta;
+    if (m === undefined || m === null) {
+      return null;
+    }
+    return boundedJsonStringify(m);
+  }, [lastHostToolDebug]);
 
   const bootstrapMetaJson = useMemo(() => {
     return boundedJsonStringify(getWidgetBootstrapMeta(browseCtx));
@@ -242,13 +316,25 @@ export function ChatVaultApp() {
       app === null || app === undefined
         ? "n/a"
         : String(hostSupportsServerTools(app));
+    const bridges = getWindowBridgeFlags();
+    const clientType = getWidgetClientTypeLabel(standalone, isConnected);
+    const ua =
+      typeof navigator !== "undefined" && navigator.userAgent
+        ? navigator.userAgent.length > 120
+          ? `${navigator.userAgent.slice(0, 117)}…`
+          : navigator.userAgent
+        : "(n/a)";
     return [
+      `clientType: ${clientType}`,
       `data-theme: ${dataTheme ?? "(unset)"}`,
       `standalone: ${standalone}`,
       `iframe: ${iframe}`,
+      `window.openai: ${bridges.openai}`,
+      `window.appbridge: ${bridges.appbridge}`,
       `isConnected: ${isConnected}`,
       `serverTools: ${serverTools}`,
       `browse: ${summarizeBrowseContext(browseCtx)}`,
+      `userAgent: ${ua}`,
     ].join("\n");
   }, [dataTheme, standalone, isConnected, app, browseCtx]);
 
@@ -257,8 +343,8 @@ export function ChatVaultApp() {
 
   const emptyHint =
     browseCtx.portalLink === undefined
-      ? "Run browseMySavedChats from ChatGPT or use the full app when available."
-      : "Nothing in this preview yet — open the full app to add chats.";
+      ? "No portal link in this session yet. Run browseMySavedChats from your MCP host (e.g. ChatGPT) so the widget receives portalLink, or use local preview data only."
+      : "Nothing saved in this preview yet — open the full app to add chats.";
 
   const mainScrollClass = standalone
     ? "mt-4"
@@ -302,6 +388,7 @@ export function ChatVaultApp() {
             </p>
           ) : null}
 
+          {/* Read-only: list/detail load via loadMyChats only; no save/edit in Part 1. */}
           <div className={mainScrollClass}>
             <ChatHistoryPanel
               chats={chats}
@@ -321,6 +408,7 @@ export function ChatVaultApp() {
 
       <div className={standalone ? "mt-4" : "mt-4 shrink-0"}>
         <DebugPanel
+          hostToolResultSummaryJson={hostToolResultSummaryJson}
           toolResultMetaJson={toolResultMetaJson}
           bootstrapMetaJson={bootstrapMetaJson}
           envSummary={envSummary}

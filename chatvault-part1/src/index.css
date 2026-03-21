@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Prompt 8: `dark:` follows `document.documentElement.dataset.theme` (single source with --cv-* vars). */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 /* Limit content scanning to widget sources (avoids scanning unrelated paths). */
 @source "./**/*.{ts,tsx,js,jsx}";
 

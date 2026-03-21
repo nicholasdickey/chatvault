@@ -67,6 +67,13 @@ export function hostSupportsServerTools(app: App): boolean {
   return st !== undefined && st !== null;
 }
 
+export type LoadChatsForWidgetResult = {
+  source: "mcp" | "mock";
+  data: LoadMyChatsStructuredContent;
+  /** Why fixture path was used (Prompt 8 debug). */
+  mockReason?: string;
+};
+
 /**
  * Load chats via MCP (`loadMyChats`) when the host proxies server tools; otherwise fixture data.
  */
@@ -75,34 +82,60 @@ export async function loadChatsForWidget(
   isConnected: boolean,
   userId: string,
   cursor?: string | null,
-): Promise<{ source: "mcp" | "mock"; data: LoadMyChatsStructuredContent }> {
-  if (app && isConnected && hostSupportsServerTools(app)) {
-    try {
-      const result = await app.callServerTool({
-        name: "loadMyChats",
-        arguments: {
-          userId,
-          ...(cursor ? { cursor } : {}),
-        },
-      });
-      if (result.isError) {
-        return {
-          source: "mock",
-          data: loadMyChatsFixture(userId, cursor),
-        };
-      }
-      const parsed = parseLoadMyChatsStructured(result);
-      if (parsed) {
-        return { source: "mcp", data: parsed };
-      }
-    } catch {
-      /* fall through */
-    }
+): Promise<LoadChatsForWidgetResult> {
+  if (!app) {
+    return {
+      source: "mock",
+      data: loadMyChatsFixture(userId, cursor),
+      mockReason: "no_app",
+    };
   }
-  return {
-    source: "mock",
-    data: loadMyChatsFixture(userId, cursor),
-  };
+  if (!isConnected) {
+    return {
+      source: "mock",
+      data: loadMyChatsFixture(userId, cursor),
+      mockReason: "not_connected",
+    };
+  }
+  if (!hostSupportsServerTools(app)) {
+    return {
+      source: "mock",
+      data: loadMyChatsFixture(userId, cursor),
+      mockReason: "no_server_tools",
+    };
+  }
+
+  try {
+    const result = await app.callServerTool({
+      name: "loadMyChats",
+      arguments: {
+        userId,
+        ...(cursor ? { cursor } : {}),
+      },
+    });
+    if (result.isError) {
+      return {
+        source: "mock",
+        data: loadMyChatsFixture(userId, cursor),
+        mockReason: "tool_error",
+      };
+    }
+    const parsed = parseLoadMyChatsStructured(result);
+    if (parsed) {
+      return { source: "mcp", data: parsed };
+    }
+    return {
+      source: "mock",
+      data: loadMyChatsFixture(userId, cursor),
+      mockReason: "bad_shape",
+    };
+  } catch {
+    return {
+      source: "mock",
+      data: loadMyChatsFixture(userId, cursor),
+      mockReason: "exception",
+    };
+  }
 }
 
 export function summarizeBrowseContext(ctx: ChatVaultBrowseContext): string {
