@@ -15,7 +15,7 @@ export default defineConfig(({ command }) => ({
   ],
   root: __dirname,
   server: {
-    open: true,
+    open: "/mcp-app.html",
   },
   build: {
     outDir: "assets",
