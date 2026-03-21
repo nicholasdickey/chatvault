@@ -1,4 +1,9 @@
 import http from "node:http";
+import {
+  handleNodeMcpDelete,
+  handleNodeMcpGet,
+  handleNodeMcpPost,
+} from "./mcp-http.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 
@@ -8,10 +13,6 @@ function mcpPath(url: string | undefined): string | undefined {
   }
   return url.split("?")[0];
 }
-
-const placeholderBody = JSON.stringify({
-  message: "MCP HTTP handler not implemented yet (Prompt 3).",
-});
 
 const server = http.createServer((req, res) => {
   const pathOnly = mcpPath(req.url);
@@ -26,27 +27,51 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.method === "GET" || req.method === "DELETE") {
-    res.writeHead(501, { "Content-Type": "application/json" });
-    res.end(placeholderBody);
+  if (req.method === "GET") {
+    void handleNodeMcpGet(req, res);
     return;
   }
-
+  if (req.method === "DELETE") {
+    void handleNodeMcpDelete(req, res);
+    return;
+  }
   if (req.method !== "POST") {
     res.writeHead(405, {
       Allow: "GET, POST, DELETE",
-      "Content-Type": "application/json",
+      "Content-Type": "text/plain",
     });
-    res.end(placeholderBody);
+    res.end("Method Not Allowed");
     return;
   }
 
-  res.writeHead(501, { "Content-Type": "application/json" });
-  res.end(placeholderBody);
+  const chunks: Buffer[] = [];
+  req.on("data", (chunk) => {
+    chunks.push(chunk);
+  });
+  req.on("end", () => {
+    void (async () => {
+      const raw = Buffer.concat(chunks).toString("utf8");
+      let parsed: unknown;
+      try {
+        parsed = raw.trim() === "" ? null : JSON.parse(raw);
+      } catch {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            error: { code: -32700, message: "Parse error" },
+            id: null,
+          }),
+        );
+        return;
+      }
+      await handleNodeMcpPost(req, res, parsed);
+    })();
+  });
 });
 
 server.listen(PORT, () => {
   console.log(
-    `[chatvault-part1] Placeholder MCP at http://127.0.0.1:${PORT}/mcp (GET /health)`,
+    `[chatvault-part1] MCP Streamable HTTP at http://127.0.0.1:${PORT}/mcp (GET /health)`,
   );
 });
