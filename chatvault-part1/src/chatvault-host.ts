@@ -1,5 +1,6 @@
 import type { App } from "@modelcontextprotocol/ext-apps";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { parseBrowseMySavedChatsArgs } from "./chatvault-browse-tool-log.js";
 import { loadMyChatsFixture } from "./chatvault-fixtures.js";
 import type {
   ChatVaultBrowseContext,
@@ -10,24 +11,7 @@ import type {
 export function parseBrowseContextFromArguments(
   args: unknown,
 ): ChatVaultBrowseContext {
-  if (args === null || typeof args !== "object" || Array.isArray(args)) {
-    return {};
-  }
-  const o = args as Record<string, unknown>;
-  const ctx: ChatVaultBrowseContext = {};
-  if (typeof o.shortAnonId === "string") {
-    ctx.shortAnonId = o.shortAnonId;
-  }
-  if (typeof o.portalLink === "string") {
-    ctx.portalLink = o.portalLink;
-  }
-  if (typeof o.loginLink === "string") {
-    ctx.loginLink = o.loginLink;
-  }
-  if (typeof o.isAnon === "boolean") {
-    ctx.isAnon = o.isAnon;
-  }
-  return ctx;
+  return parseBrowseMySavedChatsArgs(args);
 }
 
 /** Read `_meta.chatVault` from a `CallToolResult` (e.g. after `browseMySavedChats`). */

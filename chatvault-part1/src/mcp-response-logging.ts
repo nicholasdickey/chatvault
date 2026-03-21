@@ -1,10 +1,27 @@
 import type { ServerResponse } from "node:http";
 
+export type McpResponseLogOptions = {
+  /** Correlate with `[mcp] jsonrpc-in` / `tools/call` when present. */
+  sessionId?: string;
+};
+
+function formatSessionSuffix(sessionId: string | undefined): string {
+  if (sessionId === undefined || sessionId.length === 0) {
+    return "";
+  }
+  const short =
+    sessionId.length > 12 ? `${sessionId.slice(0, 8)}…` : sessionId;
+  return ` session=${short}`;
+}
+
 /**
  * Wraps `ServerResponse` to log outgoing body size and JSON-RPC outcome after `end`.
  * Safe to call once per response.
  */
-export function instrumentMcpResponseLogging(res: ServerResponse): void {
+export function instrumentMcpResponseLogging(
+  res: ServerResponse,
+  opts?: McpResponseLogOptions,
+): void {
   const chunks: Buffer[] = [];
   let capturedStatus = 0;
 
@@ -71,8 +88,9 @@ export function instrumentMcpResponseLogging(res: ServerResponse): void {
       /* ignore */
     }
     const code = capturedStatus || res.statusCode || 0;
+    const sid = formatSessionSuffix(opts?.sessionId);
     console.log(
-      `[mcp] response status=${code} bytes=${len} outcome=${outcome} id=${rpcId}`,
+      `[mcp] response${sid} status=${code} bytes=${len} outcome=${outcome} id=${rpcId}`,
     );
     return (origEnd as (...a: unknown[]) => ServerResponse)(chunk, ...rest);
   };

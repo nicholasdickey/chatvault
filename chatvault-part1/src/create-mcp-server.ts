@@ -10,10 +10,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
   BROWSE_MY_SAVED_CHATS_TOOL_NAME,
+  logBrowseMySavedChatsToolDispatch,
   summarizeGenericToolArguments,
 } from "./chatvault-browse-tool-log.js";
 import { loadMyChatsFixture } from "./chatvault-fixtures.js";
-import type { ChatVaultBrowseContext } from "./chatvault-types.js";
 import { getMcpPublicOrigin } from "./mcp-public-url.js";
 
 /** Canonical widget resource URI. */
@@ -85,28 +85,6 @@ function buildWidgetResourceContentMeta(publicOrigin: string): Record<string, un
   };
 }
 
-function buildChatVaultMeta(
-  args: Record<string, unknown> | undefined,
-): ChatVaultBrowseContext {
-  const m: ChatVaultBrowseContext = {};
-  if (args === undefined) {
-    return m;
-  }
-  if (typeof args.shortAnonId === "string") {
-    m.shortAnonId = args.shortAnonId;
-  }
-  if (typeof args.portalLink === "string") {
-    m.portalLink = args.portalLink;
-  }
-  if (typeof args.loginLink === "string") {
-    m.loginLink = args.loginLink;
-  }
-  if (typeof args.isAnon === "boolean") {
-    m.isAnon = args.isAnon;
-  }
-  return m;
-}
-
 export function createMcpServer(): McpServer {
   const server = new McpServer(
     { name: MCP_SERVER_INFO.name, version: MCP_SERVER_INFO.version },
@@ -131,10 +109,7 @@ export function createMcpServer(): McpServer {
     },
     async (args) => {
       const raw = args as Record<string, unknown> | undefined;
-      console.log(
-        `[${BROWSE_MY_SAVED_CHATS_TOOL_NAME}] ${summarizeGenericToolArguments(raw)}`,
-      );
-      const chatVault = buildChatVaultMeta(raw);
+      const chatVault = logBrowseMySavedChatsToolDispatch(raw);
       return {
         content: [
           {
@@ -165,7 +140,9 @@ export function createMcpServer(): McpServer {
         userId: string;
         cursor?: string;
       };
-      console.log(`[loadMyChats] userId=${userId} cursor=${cursor ?? "(none)"}`);
+      console.log(
+        `[mcp] tool dispatch name=loadMyChats userId=${userId} cursor=${cursor ?? "(none)"}`,
+      );
       const { chats, nextCursor } = loadMyChatsFixture(userId, cursor);
       return {
         content: [
@@ -189,7 +166,9 @@ export function createMcpServer(): McpServer {
       },
     },
     async (args) => {
-      console.log("[saveChat]", summarizeGenericToolArguments(args));
+      console.log(
+        `[mcp] tool dispatch name=saveChat ${summarizeGenericToolArguments(args)}`,
+      );
       return {
         content: [
           {
@@ -210,7 +189,9 @@ export function createMcpServer(): McpServer {
       },
     },
     async (args) => {
-      console.log("[searchMyChats]", summarizeGenericToolArguments(args));
+      console.log(
+        `[mcp] tool dispatch name=searchMyChats ${summarizeGenericToolArguments(args)}`,
+      );
       return {
         content: [
           {

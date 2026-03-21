@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { summarizeGenericToolArguments } from "./chatvault-browse-tool-log.js";
 import {
   createMcpServer,
   getMcpDeploymentHealth,
@@ -57,7 +58,16 @@ function ensureMcpAcceptHeader(req: IncomingMessage): void {
   req.headers.accept = value;
 }
 
-function logIncomingMcpJsonRpc(body: unknown): void {
+function formatSessionSuffix(sessionId: string | undefined): string {
+  if (sessionId === undefined || sessionId.length === 0) {
+    return "";
+  }
+  const short =
+    sessionId.length > 12 ? `${sessionId.slice(0, 8)}…` : sessionId;
+  return ` session=${short}`;
+}
+
+function logIncomingMcpJsonRpc(body: unknown, sessionId?: string): void {
   if (typeof body !== "object" || body === null || !("method" in body)) {
     return;
   }
@@ -66,8 +76,31 @@ function logIncomingMcpJsonRpc(body: unknown): void {
     o.params != null && typeof o.params === "object" && !Array.isArray(o.params)
       ? Object.keys(o.params as object)
       : [];
+  const sid = formatSessionSuffix(sessionId);
   console.log(
-    `[mcp] jsonrpc method=${String(o.method)} id=${JSON.stringify(o.id)} paramsKeys=${paramKeys.join(",")}`,
+    `[mcp] jsonrpc-in${sid} method=${String(o.method)} id=${JSON.stringify(o.id)} paramsKeys=${paramKeys.join(",")}`,
+  );
+}
+
+/** Explicit `tools/call` line (Prompt 9); detailed browse args logged in tool handler. */
+function logToolsCallDispatch(body: unknown, sessionId?: string): void {
+  if (typeof body !== "object" || body === null) {
+    return;
+  }
+  const o = body as { method?: unknown; params?: unknown; id?: unknown };
+  if (o.method !== "tools/call") {
+    return;
+  }
+  const p = o.params;
+  if (p == null || typeof p !== "object" || Array.isArray(p)) {
+    return;
+  }
+  const params = p as Record<string, unknown>;
+  const name = typeof params.name === "string" ? params.name : "(missing)";
+  const sid = formatSessionSuffix(sessionId);
+  const argSummary = summarizeGenericToolArguments(params.arguments);
+  console.log(
+    `[mcp] tools/call${sid} name=${name} id=${JSON.stringify(o.id)} ${argSummary}`,
   );
 }
 
@@ -96,7 +129,8 @@ export async function handleNodeMcpPost(
   res: ServerResponse,
   parsedBody: unknown,
 ): Promise<void> {
-  instrumentMcpResponseLogging(res);
+  const sessionId = getMcpSessionId(req);
+  instrumentMcpResponseLogging(res, { sessionId });
   if (
     parsedBody === null ||
     typeof parsedBody !== "object" ||
@@ -111,11 +145,11 @@ export async function handleNodeMcpPost(
     return;
   }
 
-  logIncomingMcpJsonRpc(parsedBody);
+  logIncomingMcpJsonRpc(parsedBody, sessionId);
+  logToolsCallDispatch(parsedBody, sessionId);
   ensureMcpAcceptHeader(req);
 
   const transports = getTransportMap();
-  const sessionId = getMcpSessionId(req);
 
   try {
     if (sessionId !== undefined && transports.has(sessionId)) {
@@ -190,8 +224,8 @@ export async function handleNodeMcpDelete(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
-  instrumentMcpResponseLogging(res);
   const sessionId = getMcpSessionId(req);
+  instrumentMcpResponseLogging(res, { sessionId });
   const transports = getTransportMap();
   if (sessionId === undefined || !transports.has(sessionId)) {
     res.writeHead(400, { "Content-Type": "text/plain" });
