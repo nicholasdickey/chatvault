@@ -8,8 +8,9 @@ import {
 } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { getMcpPublicOrigin } from "./mcp-public-url.js";
 
-/** Canonical widget resource URI (Prompt 5 will add OpenAI-specific _meta). */
+/** Canonical widget resource URI. */
 export const WIDGET_RESOURCE_URI = "ui://chat-vault/mcp-app.html";
 
 export const MCP_SERVER_INFO = {
@@ -50,6 +51,30 @@ export async function getMcpDeploymentHealth(): Promise<{
     widget: {
       ok: widgetOk,
       bytes: Buffer.byteLength(html, "utf8"),
+    },
+  };
+}
+
+/** `_meta` for `resources/read` content item: ext-apps `ui` + OpenAI host hints (Prompt 5). */
+function buildWidgetResourceContentMeta(publicOrigin: string): Record<string, unknown> {
+  const host = new URL(publicOrigin).host;
+  const origins = [publicOrigin];
+
+  return {
+    ui: {
+      prefersBorder: true,
+      domain: host,
+      csp: {
+        connectDomains: [...origins],
+        resourceDomains: [...origins],
+      },
+    },
+    "openai/outputTemplate": WIDGET_RESOURCE_URI,
+    "openai/widgetPrefersBorder": true,
+    "openai/widgetDomain": publicOrigin,
+    "openai/widgetCSP": {
+      connect_domains: origins,
+      resource_domains: origins,
     },
   };
 }
@@ -97,8 +122,9 @@ export function createMcpServer(): McpServer {
     { description: "MCP App single-file HTML widget (tutorial)" },
     async () => {
       const html = await readWidgetHtml();
+      const publicOrigin = getMcpPublicOrigin();
       console.log(
-        `[mcp] resources/read widget uri=${WIDGET_RESOURCE_URI} bytes=${Buffer.byteLength(html, "utf8")}`,
+        `[mcp] resources/read widget uri=${WIDGET_RESOURCE_URI} bytes=${Buffer.byteLength(html, "utf8")} origin=${publicOrigin}`,
       );
       return {
         contents: [
@@ -106,6 +132,7 @@ export function createMcpServer(): McpServer {
             uri: WIDGET_RESOURCE_URI,
             mimeType: RESOURCE_MIME_TYPE,
             text: html,
+            _meta: buildWidgetResourceContentMeta(publicOrigin),
           },
         ],
       };
