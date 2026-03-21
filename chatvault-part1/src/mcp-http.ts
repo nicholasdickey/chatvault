@@ -7,6 +7,7 @@ import {
   getMcpDeploymentHealth,
   MCP_SERVER_INFO,
 } from "./create-mcp-server.js";
+import { instrumentMcpResponseLogging } from "./mcp-response-logging.js";
 
 type GlobalWithTransports = typeof globalThis & {
   __chatvaultMcpTransports?: Map<string, StreamableHTTPServerTransport>;
@@ -95,6 +96,7 @@ export async function handleNodeMcpPost(
   res: ServerResponse,
   parsedBody: unknown,
 ): Promise<void> {
+  instrumentMcpResponseLogging(res);
   if (
     parsedBody === null ||
     typeof parsedBody !== "object" ||
@@ -163,6 +165,7 @@ export async function handleNodeMcpGet(
   _req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
+  instrumentMcpResponseLogging(res);
   try {
     const health = await getMcpDeploymentHealth();
     const status = health.ok ? 200 : 503;
@@ -187,6 +190,7 @@ export async function handleNodeMcpDelete(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
+  instrumentMcpResponseLogging(res);
   const sessionId = getMcpSessionId(req);
   const transports = getTransportMap();
   if (sessionId === undefined || !transports.has(sessionId)) {
