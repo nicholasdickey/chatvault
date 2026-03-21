@@ -3,6 +3,8 @@ import { execSync, spawn, type ChildProcess } from "node:child_process";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { BROWSE_MY_SAVED_CHATS_TOOL_NAME } from "./chatvault-browse-tool-log.js";
+import { CURSOR_PAGE2 } from "./chatvault-fixtures.js";
 import { WIDGET_RESOURCE_URI } from "./create-mcp-server.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -92,7 +94,7 @@ describe("MCP Streamable HTTP (e2e)", () => {
     child = undefined;
   });
 
-  it("runs initialize, tools/list, resources/list, resources/read, tools/call testWidget", async () => {
+  it("runs initialize, tools/list, resources, browseMySavedChats, loadMyChats", async () => {
     const base = `http://127.0.0.1:${port}/mcp`;
 
     const getRes = await fetch(base, { method: "GET" });
@@ -172,7 +174,11 @@ describe("MCP Streamable HTTP (e2e)", () => {
     };
     expect(toolsJson.error).toBeUndefined();
     const toolNames = toolsJson.result?.tools?.map((t) => t.name) ?? [];
-    expect(toolNames).toContain("testWidget");
+    expect(toolNames).toContain(BROWSE_MY_SAVED_CHATS_TOOL_NAME);
+    expect(toolNames).toContain("loadMyChats");
+    expect(toolNames).toContain("saveChat");
+    expect(toolNames).toContain("searchMyChats");
+    expect(toolNames).not.toContain("testWidget");
 
     const resourcesList = await fetch(base, {
       method: "POST",
@@ -226,7 +232,7 @@ describe("MCP Streamable HTTP (e2e)", () => {
     expect(typeof meta?.["openai/widgetDomain"]).toBe("string");
     expect(meta?.["openai/widgetCSP"]).toBeDefined();
 
-    const testWidgetCall = await fetch(base, {
+    const browseCall = await fetch(base, {
       method: "POST",
       headers: sessionHeaders,
       body: JSON.stringify({
@@ -234,22 +240,88 @@ describe("MCP Streamable HTTP (e2e)", () => {
         id: 5,
         method: "tools/call",
         params: {
-          name: "testWidget",
-          arguments: {},
+          name: BROWSE_MY_SAVED_CHATS_TOOL_NAME,
+          arguments: {
+            shortAnonId: "anon-test-123",
+            isAnon: true,
+          },
         },
       }),
     });
-    expect(testWidgetCall.status).toBe(200);
-    const twJson = (await testWidgetCall.json()) as {
+    expect(browseCall.status).toBe(200);
+    const browseJson = (await browseCall.json()) as {
       result?: {
         content?: { type: string; text?: string }[];
-        _meta?: { ui?: { resourceUri?: string } };
+        _meta?: {
+          ui?: { resourceUri?: string };
+          chatVault?: {
+            shortAnonId?: string;
+            isAnon?: boolean;
+          };
+        };
       };
       error?: unknown;
     };
-    expect(twJson.error).toBeUndefined();
-    expect(twJson.result?.content?.[0]?.type).toBe("text");
-    expect(twJson.result?.content?.[0]?.text).toContain("testWidget");
-    expect(twJson.result?._meta?.ui?.resourceUri).toBe(WIDGET_RESOURCE_URI);
+    expect(browseJson.error).toBeUndefined();
+    expect(browseJson.result?.content?.[0]?.type).toBe("text");
+    expect(browseJson.result?.content?.[0]?.text).toContain("ChatVault");
+    expect(browseJson.result?._meta?.ui?.resourceUri).toBe(WIDGET_RESOURCE_URI);
+    expect(browseJson.result?._meta?.chatVault).toBeDefined();
+    expect(browseJson.result?._meta?.chatVault?.shortAnonId).toBe("anon-test-123");
+    expect(browseJson.result?._meta?.chatVault?.isAnon).toBe(true);
+
+    const loadPage1 = await fetch(base, {
+      method: "POST",
+      headers: sessionHeaders,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 6,
+        method: "tools/call",
+        params: {
+          name: "loadMyChats",
+          arguments: { userId: "e2e-user" },
+        },
+      }),
+    });
+    expect(loadPage1.status).toBe(200);
+    const load1Json = (await loadPage1.json()) as {
+      result?: {
+        structuredContent?: {
+          chats?: unknown[];
+          nextCursor?: string | null;
+        };
+      };
+      error?: unknown;
+    };
+    expect(load1Json.error).toBeUndefined();
+    expect(load1Json.result?.structuredContent?.chats?.length).toBe(2);
+    expect(load1Json.result?.structuredContent?.nextCursor).toBe(CURSOR_PAGE2);
+
+    const loadPage2 = await fetch(base, {
+      method: "POST",
+      headers: sessionHeaders,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 7,
+        method: "tools/call",
+        params: {
+          name: "loadMyChats",
+          arguments: { userId: "e2e-user", cursor: CURSOR_PAGE2 },
+        },
+      }),
+    });
+    expect(loadPage2.status).toBe(200);
+    const load2Json = (await loadPage2.json()) as {
+      result?: {
+        structuredContent?: {
+          chats?: unknown[];
+          nextCursor?: string | null;
+        };
+      };
+      error?: unknown;
+    };
+    expect(load2Json.error).toBeUndefined();
+    expect(load2Json.result?.structuredContent?.chats?.length).toBe(1);
+    expect(load2Json.result?.structuredContent?.nextCursor).toBeNull();
   });
 });

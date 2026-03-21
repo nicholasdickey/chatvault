@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import {
   formatLogLine,
   getWidgetLogSnapshot,
@@ -7,8 +7,8 @@ import {
   subscribeWidgetLog,
 } from "./widget-log.js";
 
-function logEnvironment(): void {
-  logWidget("mount", "Widget mounted (Prompt 4)");
+function detectEnvironmentToLog(): void {
+  logWidget("mount", "ChatVault widget mounted");
 
   const loc = window.location;
   const path =
@@ -30,40 +30,39 @@ function logEnvironment(): void {
 
   const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   logWidget("env", `prefers-color-scheme ${dark ? "dark" : "light"}`);
-
-  logWidget(
-    "tool",
-    "Tool calls from the host will appear here when appbridge/OpenAI calls server tools.",
-  );
 }
 
-export function DebugPanel() {
+export function DebugPanel({
+  toolResultMetaJson,
+  bootstrapMetaJson,
+  envSummary,
+}: {
+  toolResultMetaJson: string | null;
+  bootstrapMetaJson: string;
+  envSummary: string;
+}) {
   const snapshot = useSyncExternalStore(
     subscribeWidgetLog,
     getWidgetLogSnapshot,
     getWidgetLogSnapshot,
   );
 
-  useEffect(() => {
-    logEnvironment();
+  const metaBlock = useMemo(() => {
+    if (!toolResultMetaJson || toolResultMetaJson.length === 0) {
+      return "(none yet — waiting for tool result _meta from host)";
+    }
+    return toolResultMetaJson;
+  }, [toolResultMetaJson]);
 
-    const onError = (ev: ErrorEvent) => {
-      const msg =
-        ev.message ||
-        (ev.error instanceof Error ? ev.error.message : String(ev.error));
-      logWidget("error", msg);
-    };
-    const onRejection = (ev: PromiseRejectionEvent) => {
-      const r = ev.reason;
-      const msg = r instanceof Error ? r.message : String(r);
-      logWidget("error", `unhandledrejection: ${msg}`);
-    };
-    window.addEventListener("error", onError);
-    window.addEventListener("unhandledrejection", onRejection);
-    return () => {
-      window.removeEventListener("error", onError);
-      window.removeEventListener("unhandledrejection", onRejection);
-    };
+  const bootstrapBlock = useMemo(() => {
+    if (!bootstrapMetaJson || bootstrapMetaJson === "{}") {
+      return "(empty — no browse context yet)";
+    }
+    return bootstrapMetaJson;
+  }, [bootstrapMetaJson]);
+
+  useEffect(() => {
+    detectEnvironmentToLog();
   }, []);
 
   const simulateTool = useCallback(() => {
@@ -73,21 +72,55 @@ export function DebugPanel() {
   const text = snapshot.map(formatLogLine).join("\n");
 
   return (
-    <details className="mt-6 rounded-lg border border-slate-200 bg-slate-50 text-left dark:border-slate-700 dark:bg-slate-950">
+    <details className="debug-panel mt-6 rounded-lg border border-slate-200 bg-slate-50 text-left dark:border-slate-700 dark:bg-slate-950">
       <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-400">
         Debug panel
       </summary>
       <div className="space-y-2 border-t border-slate-200 px-2 py-2 dark:border-slate-700">
-        <button
-          type="button"
-          className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-          onClick={simulateTool}
-        >
-          Simulate tool log line
-        </button>
-        <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded border border-slate-200 bg-white p-2 font-mono text-[10px] text-slate-800 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
-          {text}
-        </pre>
+        <details className="rounded border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900">
+          <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+            Host / tool _meta (last result)
+          </summary>
+          <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words border-t border-slate-200 p-2 font-mono text-[10px] text-slate-800 dark:border-slate-600 dark:text-slate-200">
+            {metaBlock}
+          </pre>
+        </details>
+
+        <details className="rounded border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900">
+          <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+            Bootstrap meta (chatVault / browse context)
+          </summary>
+          <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words border-t border-slate-200 p-2 font-mono text-[10px] text-slate-800 dark:border-slate-600 dark:text-slate-200">
+            {bootstrapBlock}
+          </pre>
+        </details>
+
+        <details className="rounded border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900">
+          <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+            Environment
+          </summary>
+          <pre className="max-h-32 overflow-auto whitespace-pre-wrap border-t border-slate-200 p-2 font-mono text-[10px] text-slate-800 dark:border-slate-600 dark:text-slate-200">
+            {envSummary}
+          </pre>
+        </details>
+
+        <details className="rounded border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900" open>
+          <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+            Widget log
+          </summary>
+          <div className="border-t border-slate-200 p-2 dark:border-slate-600">
+            <button
+              type="button"
+              onClick={simulateTool}
+              className="mb-2 rounded bg-slate-200 px-2 py-1 text-xs text-slate-800 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              Simulate tool log
+            </button>
+            <pre className="debug-panel__pre max-h-48 overflow-auto whitespace-pre-wrap break-words rounded border border-slate-200 bg-slate-50 p-2 font-mono text-[11px] leading-snug text-slate-800 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-200">
+              {text.length > 0 ? text : "(no entries yet)"}
+            </pre>
+          </div>
+        </details>
       </div>
     </details>
   );

@@ -8,6 +8,12 @@ import {
 } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import {
+  BROWSE_MY_SAVED_CHATS_TOOL_NAME,
+  summarizeGenericToolArguments,
+} from "./chatvault-browse-tool-log.js";
+import { loadMyChatsFixture } from "./chatvault-fixtures.js";
+import type { ChatVaultBrowseContext } from "./chatvault-types.js";
 import { getMcpPublicOrigin } from "./mcp-public-url.js";
 
 /** Canonical widget resource URI. */
@@ -79,6 +85,28 @@ function buildWidgetResourceContentMeta(publicOrigin: string): Record<string, un
   };
 }
 
+function buildChatVaultMeta(
+  args: Record<string, unknown> | undefined,
+): ChatVaultBrowseContext {
+  const m: ChatVaultBrowseContext = {};
+  if (args === undefined) {
+    return m;
+  }
+  if (typeof args.shortAnonId === "string") {
+    m.shortAnonId = args.shortAnonId;
+  }
+  if (typeof args.portalLink === "string") {
+    m.portalLink = args.portalLink;
+  }
+  if (typeof args.loginLink === "string") {
+    m.loginLink = args.loginLink;
+  }
+  if (typeof args.isAnon === "boolean") {
+    m.isAnon = args.isAnon;
+  }
+  return m;
+}
+
 export function createMcpServer(): McpServer {
   const server = new McpServer(
     { name: MCP_SERVER_INFO.name, version: MCP_SERVER_INFO.version },
@@ -87,9 +115,10 @@ export function createMcpServer(): McpServer {
 
   registerAppTool(
     server,
-    "testWidget",
+    BROWSE_MY_SAVED_CHATS_TOOL_NAME,
     {
-      description: "Open the MCP App test widget (tutorial scaffold).",
+      description:
+        "Open the ChatVault widget to browse saved chats (routing tool; passes viewer context to the UI).",
       inputSchema: {
         shortAnonId: z.string().optional(),
         portalLink: z.string().url().optional(),
@@ -100,26 +129,104 @@ export function createMcpServer(): McpServer {
         ui: { resourceUri: WIDGET_RESOURCE_URI },
       },
     },
-    async () => {
+    async (args) => {
+      const raw = args as Record<string, unknown> | undefined;
+      console.log(
+        `[${BROWSE_MY_SAVED_CHATS_TOOL_NAME}] ${summarizeGenericToolArguments(raw)}`,
+      );
+      const chatVault = buildChatVaultMeta(raw);
       return {
         content: [
           {
             type: "text" as const,
-            text: "testWidget: MCP App UI resource is available. Open the widget in a supported host to verify.",
+            text: "Opened ChatVault! Use the widget to browse your saved chats.",
           },
         ],
         _meta: {
           ui: { resourceUri: WIDGET_RESOURCE_URI },
+          chatVault,
         },
       };
     },
   );
 
+  server.registerTool(
+    "loadMyChats",
+    {
+      description:
+        "Paged list of saved chats for the ChatVault widget (hardcoded tutorial data).",
+      inputSchema: {
+        userId: z.string(),
+        cursor: z.string().optional(),
+      },
+    },
+    async (args) => {
+      const { userId, cursor } = args as {
+        userId: string;
+        cursor?: string;
+      };
+      console.log(`[loadMyChats] userId=${userId} cursor=${cursor ?? "(none)"}`);
+      const { chats, nextCursor } = loadMyChatsFixture(userId, cursor);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Loaded ${chats.length} chat(s)${nextCursor ? "; more available" : ""}.`,
+          },
+        ],
+        structuredContent: { chats, nextCursor },
+      };
+    },
+  );
+
+  server.registerTool(
+    "saveChat",
+    {
+      description: "Stub: persist a chat (not implemented in Part 1 tutorial).",
+      inputSchema: {
+        title: z.string().optional(),
+        chatId: z.string().optional(),
+      },
+    },
+    async (args) => {
+      console.log("[saveChat]", summarizeGenericToolArguments(args));
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "saveChat is not implemented in this tutorial build (dummy tool).",
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "searchMyChats",
+    {
+      description: "Stub: search saved chats (not implemented in Part 1 tutorial).",
+      inputSchema: {
+        query: z.string().optional(),
+      },
+    },
+    async (args) => {
+      console.log("[searchMyChats]", summarizeGenericToolArguments(args));
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "searchMyChats is not implemented in this tutorial build (dummy tool).",
+          },
+        ],
+      };
+    },
+  );
+
   registerAppResource(
-    server as unknown as Parameters<typeof registerAppResource>[0],
+    server,
     "ChatVault widget",
     WIDGET_RESOURCE_URI,
-    { description: "MCP App single-file HTML widget (tutorial)" },
+    { description: "ChatVault MCP App single-file HTML widget" },
     async () => {
       const html = await readWidgetHtml();
       const publicOrigin = getMcpPublicOrigin();
