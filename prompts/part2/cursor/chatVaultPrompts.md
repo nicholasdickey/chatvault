@@ -96,6 +96,6 @@ Start the backend server, set up an ngrok tunnel, and configure ChatGPT to conne
 
 After completing Prompt10, the ChatVault backend is complete and ready for:
 
-- Integration with Part 1 widget (if desired)
-- Production deployment (Part 4)
+- Integration with Part 1 widget (Part 3)
 - SaaS layer integration (Part 3)
+- Production deployment (Part 4)
