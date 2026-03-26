@@ -11,6 +11,9 @@ await initDatabase();
 const { app: mcpApp } = createChatVaultMcpApp(resolveChatVaultMcpExpressOptions());
 
 const app = express();
+// Public URLs: /api/mcp (direct) and /mcp (vercel.json rewrite → /api/mcp). Some invocations
+// still present path as /mcp on this handler, so mount both or GET /mcp 404s ("Cannot GET /mcp").
 app.use("/api", mcpApp);
+app.use(mcpApp);
 
 export default app;
