@@ -108,8 +108,15 @@ export function registerMcpRoutes(
   });
 
   app.get("/mcp", (_req: Request, res: Response) => {
-    log("GET /mcp rejected (use POST for JSON-RPC)");
-    res.status(405).set("Allow", "POST, OPTIONS").send("Method Not Allowed");
+    log("GET /mcp (smoke / browser check)");
+    res.set(corsHeaders);
+    res.status(200).type("application/json").json({
+      ok: true,
+      service: "chatvault-part2",
+      mcp: "Streamable HTTP (JSON-RPC)",
+      message:
+        "MCP endpoint is up. Clients must use POST /mcp with JSON-RPC (initialize, then tools/call with mcp-session-id).",
+    });
   });
 
   app.delete("/mcp", async (req: Request, res: Response) => {
