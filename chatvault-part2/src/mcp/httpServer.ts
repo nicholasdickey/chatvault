@@ -4,6 +4,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { registerLoadChatsTool } from "./tools/loadChats.js";
+import { registerSaveChatTool } from "./tools/saveChat.js";
+import { registerSearchChatsTool } from "./tools/searchChats.js";
 
 const log = (msg: string, extra?: Record<string, unknown>) => {
   if (extra && Object.keys(extra).length > 0) {
@@ -13,11 +16,65 @@ const log = (msg: string, extra?: Record<string, unknown>) => {
   }
 };
 
+/**
+ * Express host options for `createMcpExpressApp` (DNS rebinding / Host header).
+ * - Local dev: default localhost protection, or `host: "0.0.0.0"` when binding all interfaces.
+ * - Vercel: `allowedHosts` must include the deployment hostname (`VERCEL_URL` is set automatically).
+ * - Optional `MCP_ALLOWED_HOSTS`: comma-separated hostnames (e.g. custom domain or preview URLs).
+ */
+export function resolveChatVaultMcpExpressOptions(options?: {
+  listenHost?: string;
+}): { host?: string; allowedHosts?: string[] } | undefined {
+  const listenHost = options?.listenHost;
+  const fromEnv =
+    process.env.MCP_ALLOWED_HOSTS?.split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0) ?? [];
+
+  if (process.env.VERCEL) {
+    const hosts = new Set<string>(fromEnv);
+    const raw = process.env.VERCEL_URL?.trim();
+    if (raw) {
+      try {
+        hosts.add(new URL(raw.startsWith("http") ? raw : `https://${raw}`).hostname);
+      } catch {
+        hosts.add(raw.split("/")[0] ?? raw);
+      }
+    }
+    if (hosts.size === 0) {
+      throw new Error(
+        "[chatvault-part2] On Vercel, set MCP_ALLOWED_HOSTS or rely on VERCEL_URL (set automatically by Vercel).",
+      );
+    }
+    return { allowedHosts: [...hosts] };
+  }
+
+  if (listenHost === "0.0.0.0") {
+    if (fromEnv.length > 0) {
+      return { host: "0.0.0.0", allowedHosts: fromEnv };
+    }
+    return { host: "0.0.0.0" };
+  }
+
+  if (fromEnv.length > 0) {
+    return { allowedHosts: fromEnv };
+  }
+
+  return undefined;
+}
+
 function createChatVaultMcpServer(): McpServer {
-  return new McpServer(
+  const server = new McpServer(
     { name: "chatvault-part2", version: "0.0.1" },
     { capabilities: {} },
   );
+  registerSaveChatTool(server);
+  registerLoadChatsTool(server);
+  registerSearchChatsTool(server);
+  // Without registered resources, the SDK never installs resources/list handlers.
+  const s = server as unknown as { setResourceRequestHandlers(): void };
+  s.setResourceRequestHandlers();
+  return server;
 }
 
 const corsHeaders = {

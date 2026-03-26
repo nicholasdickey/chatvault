@@ -1,29 +1,12 @@
 import "dotenv/config";
-import { initDatabase } from "./db/init.js";
-import { pool } from "./db/client.js";
-import { closeAllTransports, createChatVaultMcpApp } from "./mcp/httpServer.js";
+import { startChatVaultServer } from "./server.js";
 
 async function main() {
-  await initDatabase();
-
-  const host = process.env.MCP_HOST ?? "127.0.0.1";
-  const port = Number(process.env.MCP_PORT ?? process.env.PORT ?? 3000);
-
-  const { app, transports } = createChatVaultMcpApp(
-    host === "0.0.0.0" ? { host: "0.0.0.0" } : undefined,
-  );
-
-  const server = app.listen(port, host, () => {
-    console.log(`[chatvault-part2] MCP HTTP listening on http://${host}:${port}/mcp`);
-  });
+  const { close } = await startChatVaultServer();
 
   const shutdown = async () => {
     console.log("[chatvault-part2] Shutting down…");
-    await closeAllTransports(transports);
-    await new Promise<void>((resolve, reject) => {
-      server.close((err) => (err ? reject(err) : resolve()));
-    });
-    await pool.end();
+    await close();
     process.exit(0);
   };
 
