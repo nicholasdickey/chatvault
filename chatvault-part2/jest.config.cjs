@@ -1,5 +1,6 @@
 /** @type {import("jest").Config} */
 module.exports = {
+  globalSetup: "<rootDir>/src/test/jest-global-setup.cjs",
   preset: "ts-jest/presets/default-esm",
   testEnvironment: "node",
   extensionsToTreatAsEsm: [".ts"],
