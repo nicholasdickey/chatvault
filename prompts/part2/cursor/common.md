@@ -19,7 +19,7 @@ Project-specific behavior (tools, data model, schema) should be defined in that 
 - **Design for graceful degradation and bounded behavior**: Database operations should handle connection failures, query timeouts, and constraint violations in a controlled, observable way (clear error messages, no infinite retries or unbounded logging).
 - **Separate concerns**: Keep database schema, MCP protocol handling, and business logic in separate modules. This makes testing, debugging, and future refactoring easier.
 
-project name - `${PROJECT_NAME}`
+project name - `${PROJECT_NAME}` - default chatvault-part2
 
 ---
 
