@@ -23,27 +23,33 @@ project name - `${PROJECT_NAME}`
 
 ---
 
-Prompt0: Setup Neon PostgreSQL Database
+Prompt1: Setup Neon PostgreSQL Database
 
 Instruct the user to set up a PostgreSQL database in Neon for development and production. Create an account, create a project, and get the connection string. Enable the pgvector extension in the database so we can do vector similarity search later.
 
 ---
 
-Prompt1: Initialize Node.js Project with Drizzle + Apps SDK
+Prompt2: Initialize Node.js Project with Drizzle + Apps SDK
 
-Create a new Node.js project for the backend MCP server. Set it up as a sibling to any existing frontend/widget projects (for example, if you have `chat-vault-part1`, create `chat-vault-part2` in the same parent directory). Initialize it with TypeScript, Drizzle ORM, and the Apps SDK. Install the necessary dependencies for PostgreSQL, pgvector support, and environment variable management.
-
---
-
-Prompt2: Refactor to Monorepo Structure
-
-Refactor the project tree to have a single root repository with `chatvault-tutorial` as the root directory. Preserve the git history from `chat-vault-part1` when moving it into the monorepo structure. Add `${PROJECT_NAME}` to the repo. Detach repo from its current origin. Verify that all existing functionality still works—tests pass, builds succeed, and the MCP server starts correctly.
-
-- remove pre-commit configuration (if present)
+Create a new Node.js project for the backend MCP server. Set it up as a sibling to any existing frontend/widget projects (for example, if you have `chatvault-part1`, create `chatvault-part2` in the same parent directory). Initialize it with TypeScript, Drizzle ORM, and the Apps SDK. Install the necessary dependencies for PostgreSQL, pgvector support, and environment variable management.
 
 --
 
-Prompt3: Create Basic MCP HTTP Streaming Server
+Prompt3: Install Dependencies + Initialize Drizzle
+
+Install all dependencies and set up Drizzle ORM. Configure Drizzle to connect to your Neon database, create the initial schema file (we'll add tables in the project-specific prompts), and set up a database connection utility. Create a migration to enable the pgvector extension. Test the database connection on server startup and verify pgvector is available.
+
+**Non-negotiables:**
+
+- `.env` file must be in `.gitignore`
+- Database connection must be tested on server startup
+- pgvector extension must be enabled before any schema migrations
+- All database operations must go through the Drizzle `db` instance
+- Schema file must be in `src/db/schema.ts`
+
+---
+
+Prompt4: Create Basic MCP HTTP Streaming Server
 
 Build a minimal MCP server with HTTP streaming transport. Create an HTTP server that handles `POST /mcp` for MCP requests and `OPTIONS /mcp` for CORS preflight. Use the `@modelcontextprotocol/sdk` Server instance internally.
 
@@ -56,20 +62,6 @@ Build a minimal MCP server with HTTP streaming transport. Create an HTTP server 
 - Must log all MCP operations for debugging
 - For ALL responses: Set `Content-Type: application/json` header (NOT `application/x-ndjson`), send a single JSON-RPC response object and immediately end the HTTP response
 - For notifications (requests without `id`): Respond with HTTP `204 No Content`
-
----
-
-Prompt4: Install Dependencies + Initialize Drizzle
-
-Install all dependencies and set up Drizzle ORM. Configure Drizzle to connect to your Neon database, create the initial schema file (we'll add tables in the project-specific prompts), and set up a database connection utility. Create a migration to enable the pgvector extension. Test the database connection on server startup and verify pgvector is available.
-
-**Non-negotiables:**
-
-- `.env` file must be in `.gitignore`
-- Database connection must be tested on server startup
-- pgvector extension must be enabled before any schema migrations
-- All database operations must go through the Drizzle `db` instance
-- Schema file must be in `src/db/schema.ts`
 
 ---
 

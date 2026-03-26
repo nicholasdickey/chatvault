@@ -1,25 +1,24 @@
 Title: ChatVault Backend – Apps SDK / MCP Vibe Engineering PROMPTS
 
-project name - chat-vault-part2
+project name - chatvault-part2
 
 This project uses the **generic backend MCP server prompts** defined in:
 
-- `prompts/part2/cursor/openai-AppsSDK-prompt.md`
+- `prompts/part2/cursor/common.md`
 
 Use that file for:
 
-- **Prompt0**: Setup Neon PostgreSQL Database
-- **Prompt1**: Initialize Node.js Project with Drizzle + Apps SDK
-- **Prompt2**: Refactor to Monorepo Structure
-- **Prompt3**: Create Basic MCP HTTP Streaming Server
-- **Prompt4**: Install Dependencies + Initialize Drizzle
+- **Prompt1**: Setup Neon PostgreSQL Database
+- **Prompt2**: Initialize Node.js Project with Drizzle + Apps SDK
+- **Prompt3**: Install Dependencies + Initialize Drizzle
+- **Prompt4**: Create Basic MCP HTTP Streaming Server
 - **Prompt5**: Setup Generic Test Framework
 
 This file defines the **ChatVault-specific backend behavior** starting from Prompt6.
 
 ## Engineering Principles (ChatVault-specific)
 
-- **Align with the generic prompts**: All work here inherits the engineering principles from `openai-AppsSDK-prompt.md` (verify, test with real databases, graceful degradation, separate concerns). Do not introduce project-specific shortcuts that violate those principles.
+- **Align with the generic prompts**: All work here inherits the engineering principles from `common.md` (verify, test with real databases, graceful degradation, separate concerns). Do not introduce project-specific shortcuts that violate those principles.
 - **Maintain Part 1 compatibility**: The `loadChats` tool must return data in the same format as Part 1: `{ chats: [...], pagination: {...} }` with `_meta` structure. This ensures the widget from Part 1 can work with the Part 2 backend without changes.
 - **Design for observability**: All database operations should be logged (queries, results, errors). Use structured logging where possible to make debugging easier.
 - **Vector search quality**: When implementing vector search, test with various query types (short, long, technical terms, natural language) to ensure embeddings capture semantic meaning correctly.
@@ -97,6 +96,6 @@ Start the backend server, set up an ngrok tunnel, and configure ChatGPT to conne
 
 After completing Prompt10, the ChatVault backend is complete and ready for:
 
-- Integration with Part 1 widget (if desired)
-- Production deployment (Part 4)
+- Integration with Part 1 widget (Part 3)
 - SaaS layer integration (Part 3)
+- Production deployment (Part 4)

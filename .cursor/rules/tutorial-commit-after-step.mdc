@@ -5,13 +5,16 @@ alwaysApply: true
 
 # Git after each tutorial step
 
-When implementing the Chat Vault tutorial ([prompts/part1/common.md](prompts/part1/common.md), [prompts/part1/chatVaultPrompts.md](prompts/part1/chatVaultPrompts.md)):
+When implementing the Chat Vault tutorial:
+
+- **Part 1**: [prompts/part1/common.md](prompts/part1/common.md), [prompts/part1/chatVaultPrompts.md](prompts/part1/chatVaultPrompts.md) (`chatvault-part1`).
+- **Part 2** (backend MCP): [prompts/part2/cursor/common.md](prompts/part2/cursor/common.md), [prompts/part2/cursor/chatVaultPrompts.md](prompts/part2/cursor/chatVaultPrompts.md) (`chatvault-part2`).
 
 1. Treat each **completed prompt** (Prompt 2, Prompt 3, …) or each **clear sub-milestone** within a prompt as a step.
 2. When a step is done and the tree has changes, **immediately**:
    - `git add` the relevant files (or `git add -A` when appropriate).
-   - `git commit` with a short, imperative message that names the step (e.g. `Prompt 2: scaffold chatvault-part1 MCP app`).
-   - `git push` to `origin` on the current branch (e.g. `main`).
+   - `git commit` with a short, imperative message that names the step (e.g. `Part2 Prompt2: scaffold chatvault-part2 with Drizzle and MCP deps`).
+   - `git push` to `origin` on the **current branch** (e.g. `main`, `part2`).
 3. Do not leave completed steps uncommitted; avoid bundling unrelated prompts in one commit when steps were done sequentially.
 4. If there is nothing to commit, skip commit/push for that step.
 
