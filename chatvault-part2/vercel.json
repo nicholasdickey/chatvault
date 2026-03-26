@@ -2,8 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pnpm install",
   "buildCommand": "pnpm run build",
+  "rewrites": [{ "source": "/mcp", "destination": "/api/mcp" }],
   "functions": {
-    "src/app.ts": {
+    "api/mcp.ts": {
       "maxDuration": 60
     }
   }
