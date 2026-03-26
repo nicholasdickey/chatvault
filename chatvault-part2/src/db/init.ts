@@ -13,12 +13,35 @@ const migrationsFolder = path.join(
 
 const log = (msg: string) => console.log(`[chatvault-part2] ${msg}`);
 
+function shouldRunMigrations(): boolean {
+  if (process.env.RUN_MIGRATIONS_ON_VERCEL === "1") {
+    return true;
+  }
+  // Serverless: many cold starts can run migrate() in parallel → duplicate CREATE TABLE (42P07).
+  // Apply schema once with `pnpm db:migrate` against DATABASE_URL (Neon), not on every request.
+  if (process.env.VERCEL) {
+    return false;
+  }
+  if (process.env.SKIP_DATABASE_MIGRATE === "1") {
+    return false;
+  }
+  return true;
+}
+
 /**
- * Runs migrations and verifies connectivity + pgvector. Does not close the pool.
+ * Runs migrations (unless skipped) and verifies connectivity + pgvector. Does not close the pool.
  */
 export async function initDatabase(): Promise<void> {
-  log("Running database migrations…");
-  await migrate(db, { migrationsFolder });
+  if (shouldRunMigrations()) {
+    log("Running database migrations…");
+    await migrate(db, { migrationsFolder });
+  } else {
+    log(
+      process.env.VERCEL
+        ? "Skipping migrations on Vercel (run `pnpm db:migrate` with your Neon DATABASE_URL locally or in CI)."
+        : "Skipping migrations (SKIP_DATABASE_MIGRATE=1).",
+    );
+  }
 
   log("Testing database connection…");
   await db.execute(sql`SELECT 1`);
