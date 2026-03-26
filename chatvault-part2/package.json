@@ -9,7 +9,7 @@
     "build": "tsc",
     "start": "node dist/src/index.js",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node scripts/preflight-pg.mjs && drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "test": "NODE_OPTIONS=--experimental-vm-modules DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5433/chatvault_test} jest --config jest.config.cjs"
   },
