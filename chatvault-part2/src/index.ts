@@ -1,1 +1,44 @@
-console.log("chatvault-part2 backend — scaffold ready (Drizzle + MCP wired in Prompt3+)");
+import "dotenv/config";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { sql } from "drizzle-orm";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { db, pool } from "./db/client.js";
+
+const migrationsFolder = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "drizzle",
+);
+
+async function main() {
+  const log = (msg: string) => console.log(`[chatvault-part2] ${msg}`);
+
+  log("Running database migrations…");
+  await migrate(db, { migrationsFolder });
+
+  log("Testing database connection…");
+  await db.execute(sql`SELECT 1`);
+
+  log("Verifying pgvector extension…");
+  const result = await db.execute(sql`
+    SELECT extname, extversion FROM pg_extension WHERE extname = 'vector'
+  `);
+  const row = result.rows[0] as { extname?: string; extversion?: string } | undefined;
+  if (!row?.extname) {
+    throw new Error(
+      "pgvector extension is missing. Ensure migration 0000_enable_pgvector ran successfully.",
+    );
+  }
+  log(`pgvector OK (version ${row.extversion ?? "unknown"})`);
+  log("Database ready.");
+}
+
+main()
+  .catch((err: unknown) => {
+    console.error("[chatvault-part2] Database startup failed:", err);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await pool.end();
+  });
