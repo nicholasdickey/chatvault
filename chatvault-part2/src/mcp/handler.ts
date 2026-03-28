@@ -15,6 +15,7 @@ import {
   resolveLoadMyChatsPage,
   totalPagesFromTotal,
 } from "@/lib/load-my-chats-cursor";
+import { searchChatsByEmbedding } from "@/lib/search-my-chats";
 
 const LOG_PREFIX = "[mcp]";
 
@@ -227,6 +228,93 @@ export async function createMcpServer(): Promise<McpServer> {
         }
         const message = err instanceof Error ? err.message : String(err);
         logMcp("loadMyChats_error", { userId: args.userId, message });
+        throw new McpError(ErrorCode.InternalError, message);
+      }
+    },
+  );
+
+  mcp.registerTool(
+    "searchMyChats",
+    {
+      description:
+        "Semantic search over a user's saved chats using pgvector cosine distance on stored embeddings (most similar first).",
+      inputSchema: {
+        userId: z
+          .string()
+          .min(1, "userId is required")
+          .describe("Required user identifier"),
+        query: z
+          .string()
+          .min(1, "query is required")
+          .describe("Natural language search query"),
+        limit: z.coerce.number().int().min(1).optional().default(10),
+      },
+    },
+    async (args) => {
+      const started = Date.now();
+      const limit = clampLoadMyChatsLimit(args.limit ?? 10);
+      const embeddingModel =
+        process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
+
+      logMcp("searchMyChats_start", {
+        userId: args.userId,
+        queryLen: args.query.length,
+        limit,
+      });
+
+      try {
+        const queryEmbedding = await embedText(args.query);
+        const hits = await searchChatsByEmbedding(
+          getDb(),
+          args.userId,
+          queryEmbedding,
+          limit,
+        );
+
+        const chatsOut = hits.map((h) => h.chat);
+        const structuredContent = {
+          chats: chatsOut,
+          results: hits.map((h) => ({
+            chat: h.chat,
+            cosineDistance: h.cosineDistance,
+          })),
+          search: {
+            query: args.query,
+            limit,
+            resultCount: hits.length,
+            model: embeddingModel,
+          },
+          nextCursor: null,
+        };
+
+        logMcp("searchMyChats_ok", {
+          userId: args.userId,
+          resultCount: hits.length,
+          ms: Date.now() - started,
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                hits.length === 0
+                  ? "No matching chats found."
+                  : `Found ${hits.length} chat(s) ranked by similarity.`,
+            },
+          ],
+          structuredContent,
+        };
+      } catch (err) {
+        if (err instanceof McpError) {
+          logMcp("searchMyChats_mcp_error", {
+            message: err.message,
+            code: err.code,
+          });
+          throw err;
+        }
+        const message = err instanceof Error ? err.message : String(err);
+        logMcp("searchMyChats_error", { userId: args.userId, message });
         throw new McpError(ErrorCode.InternalError, message);
       }
     },

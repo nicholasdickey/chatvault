@@ -51,7 +51,7 @@ Implement the `loadChats` MCP tool that retrieves paginated chat data from Postg
 
 Prompt8: Implement `searchMyChats` Tool (Vector Search)
 
-Implement the `searchChats` MCP tool that performs vector similarity search on chat embeddings. Create a vector search query function that uses pgvector's cosine similarity operator to find chats matching a query embedding. The tool should take userId (required), query (required), and limit (optional, default 10) as parameters. Generate an embedding for the search query, perform the vector similarity search, and return results ordered by similarity (most similar first). Format the response similar to `loadChats` but include search-specific metadata. Handle cases where chats don't have embeddings gracefully.
+Implement the `searchMyChats` MCP tool that performs vector similarity search on chat embeddings. Create a vector search query function that uses pgvector's cosine similarity operator to find chats matching a query embedding. The tool should take userId (required), query (required), and limit (optional, default 10) as parameters. Generate an embedding for the search query, perform the vector similarity search, and return results ordered by similarity (most similar first). Format the response similar to `loadMyChats` but include search-specific metadata. Handle cases where chats don't have embeddings gracefully.
 
 **Non-negotiables:**
 
@@ -66,7 +66,7 @@ Implement the `searchChats` MCP tool that performs vector similarity search on c
 
 Prompt9: Update Tests for ChatVault Actions
 
-Add comprehensive end-to-end tests for `saveChat`, `loadChats`, and `searchChats` tools using a real test database. Write tests for each tool covering success cases, error cases (missing parameters, invalid data), and edge cases. Create integration tests that test the full workflow (save → load → search). Add test data helpers for creating and cleaning up test chats. Update existing protocol tests to verify all three tools are present in `tools/list`.
+Add comprehensive end-to-end tests for `saveChat`, `loadMyChats`, and `searchMyChats` tools using a real test database. Write tests for each tool covering success cases, error cases (missing parameters, invalid data), and edge cases. Create integration tests that test the full workflow (save → load → search). Add test data helpers for creating and cleaning up test chats. Update existing protocol tests to verify all three tools are present in `tools/list`.
 
 **Non-negotiables:**
 
@@ -81,7 +81,7 @@ Add comprehensive end-to-end tests for `saveChat`, `loadChats`, and `searchChats
 
 Prompt10: ChatGPT Integration and Testing
 
-Start the backend server, set up an ngrok tunnel, and configure ChatGPT to connect to the MCP server. Ensure production DB is up-to-date with migrations. Test all three tools (`saveChat`, `loadChats`, `searchChats`) from ChatGPT with various prompts. Verify error handling works correctly and that responses are clear and actionable. Optionally test integration with the Part 1 widget if available. Document the integration steps for future reference.
+Start the backend server, set up an ngrok tunnel, and configure ChatGPT to connect to the MCP server. Ensure production DB is up-to-date with migrations. Test all three tools (`saveChat`, `loadMyChats`, `searchMyChats`) from ChatGPT with various prompts. Verify error handling works correctly and that responses are clear and actionable. Optionally test integration with the Part 1 widget if available. Document the integration steps for future reference.
 
 **Non-negotiables:**
 
