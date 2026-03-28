@@ -1,11 +1,12 @@
-import { Server } from "@modelcontextprotocol/sdk/server";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import {
-  isInitializeRequest,
-  ListResourceTemplatesRequestSchema,
-  ListResourcesRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { ErrorCode, isInitializeRequest, McpError } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
+
+import { chats } from "@/db/schema";
+import { getDb } from "@/db";
+import { buildEmbeddingInput } from "@/lib/chat-text";
+import { embedText } from "@/lib/embeddings";
 
 const LOG_PREFIX = "[mcp]";
 
@@ -19,7 +20,7 @@ export const MCP_CORS_HEADERS: Record<string, string> = {
 
 type SessionEntry = {
   transport: WebStandardStreamableHTTPServerTransport;
-  server: Server;
+  mcp: McpServer;
 };
 
 const sessions = new Map<string, SessionEntry>();
@@ -31,24 +32,84 @@ export function logMcp(
   console.info(LOG_PREFIX, operation, details);
 }
 
-export async function createMcpServer(): Promise<Server> {
-  const server = new Server(
+export async function createMcpServer(): Promise<McpServer> {
+  const mcp = new McpServer(
     { name: "chatvault-part2", version: "0.1.0" },
+    { capabilities: { tools: { listChanged: true } } },
+  );
+
+  mcp.registerTool(
+    "saveChat",
     {
-      capabilities: {
-        tools: {},
-        resources: {},
+      description:
+        "Persist a chat for a user: stores title, turns, and a vector embedding of the full conversation (all prompts and responses).",
+      inputSchema: {
+        userId: z
+          .string()
+          .min(1, "userId is required")
+          .describe("Required user identifier"),
+        title: z.string().describe("Chat title"),
+        turns: z
+          .array(
+            z.object({
+              prompt: z.string(),
+              response: z.string(),
+            }),
+          )
+          .describe("Prompt/response turns (same shape as Part 1 ChatTurn)"),
       },
+    },
+    async (args) => {
+      const started = Date.now();
+      logMcp("saveChat_start", {
+        userId: args.userId,
+        turns: args.turns.length,
+        titleLen: args.title.length,
+      });
+      try {
+        const text = buildEmbeddingInput(args.title, args.turns);
+        const embedding = await embedText(text);
+        const [row] = await getDb()
+          .insert(chats)
+          .values({
+            userId: args.userId,
+            title: args.title,
+            turns: args.turns,
+            embedding,
+          })
+          .returning({ id: chats.id });
+        if (!row) {
+          throw new McpError(ErrorCode.InternalError, "Failed to insert chat");
+        }
+        logMcp("saveChat_ok", {
+          userId: args.userId,
+          chatId: row.id,
+          ms: Date.now() - started,
+        });
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ chatId: row.id }),
+            },
+          ],
+        };
+      } catch (err) {
+        if (err instanceof McpError) {
+          logMcp("saveChat_mcp_error", {
+            message: err.message,
+            code: err.code,
+          });
+          throw err;
+        }
+        const message = err instanceof Error ? err.message : String(err);
+        logMcp("saveChat_error", { userId: args.userId, message });
+        throw new McpError(ErrorCode.InternalError, message);
+      }
     },
   );
 
-  server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [] }));
-  server.setRequestHandler(ListResourcesRequestSchema, () => ({ resources: [] }));
-  server.setRequestHandler(ListResourceTemplatesRequestSchema, () => ({
-    resourceTemplates: [],
-  }));
-
-  return server;
+  return mcp;
 }
 
 function withCors(response: Response): Response {
@@ -212,12 +273,12 @@ export async function handleMcpPost(request: Request): Promise<Response> {
     ),
   });
 
-  const server = await createMcpServer();
+  const mcp = await createMcpServer();
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: () => crypto.randomUUID(),
     enableJsonResponse: true,
     onsessioninitialized: (sid) => {
-      sessions.set(sid, { transport, server });
+      sessions.set(sid, { transport, mcp });
       logMcp("session_initialized", { sessionId: sid });
     },
     onsessionclosed: (sid) => {
@@ -234,7 +295,7 @@ export async function handleMcpPost(request: Request): Promise<Response> {
     }
   };
 
-  await server.connect(transport);
+  await mcp.connect(transport);
 
   const res = await transport.handleRequest(request, { parsedBody });
   return withCors(normalizeMcpResponse(res));
