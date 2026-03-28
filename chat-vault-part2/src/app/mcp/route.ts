@@ -1,29 +1,27 @@
+import {
+  handleMcpDelete,
+  handleMcpGet,
+  handleMcpOptions,
+  handleMcpPost,
+} from "@/mcp/handler";
+
+export const runtime = "nodejs";
+
 /**
- * MCP HTTP endpoint (Prompt2 scaffold). JSON-RPC MCP handling is implemented in Prompt4.
+ * MCP Streamable HTTP (Prompt4). JSON-RPC over POST; session via `mcp-session-id`.
  */
-export async function POST() {
-  return Response.json(
-    {
-      jsonrpc: "2.0",
-      id: null,
-      error: {
-        code: -32000,
-        message:
-          "MCP handler not implemented yet; complete Prompt4 (basic MCP HTTP streaming server).",
-      },
-    },
-    { status: 501, headers: { "Content-Type": "application/json" } },
-  );
+export async function GET(request: Request) {
+  return handleMcpGet(request);
+}
+
+export async function POST(request: Request) {
+  return handleMcpPost(request);
+}
+
+export async function DELETE(request: Request) {
+  return handleMcpDelete(request);
 }
 
 export async function OPTIONS() {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, mcp-session-id",
-      "Access-Control-Max-Age": "86400",
-    },
-  });
+  return handleMcpOptions();
 }
