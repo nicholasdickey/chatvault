@@ -1,6 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { ErrorCode, isInitializeRequest, McpError } from "@modelcontextprotocol/sdk/types.js";
+import {
+  ErrorCode,
+  isInitializeRequest,
+  McpError,
+  type ToolAnnotations,
+} from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 import { count, desc, eq } from "drizzle-orm";
@@ -18,6 +23,25 @@ import {
 import { searchChatsByEmbedding } from "@/lib/search-my-chats";
 
 const LOG_PREFIX = "[mcp]";
+
+/**
+ * MCP {@link ToolAnnotations} for ChatGPT / Apps SDK. Explicit `openWorldHint: false`
+ * and `destructiveHint: false` avoid implying tools are globally dangerous or destructive;
+ * read-only tools set `readOnlyHint: true`.
+ */
+const TOOL_READ: ToolAnnotations = {
+  readOnlyHint: true,
+  openWorldHint: false,
+  destructiveHint: false,
+};
+
+/** Additive DB insert (new chat row); not a destructive update. */
+const TOOL_SAVE: ToolAnnotations = {
+  readOnlyHint: false,
+  openWorldHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+};
 
 export const MCP_CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -50,6 +74,7 @@ export async function createMcpServer(): Promise<McpServer> {
   mcp.registerTool(
     "saveChat",
     {
+      annotations: TOOL_SAVE,
       description:
         "Persist a chat for a user: stores title, turns, and a vector embedding of the full conversation (all prompts and responses).",
       inputSchema: {
@@ -121,6 +146,7 @@ export async function createMcpServer(): Promise<McpServer> {
   mcp.registerTool(
     "loadMyChats",
     {
+      annotations: TOOL_READ,
       description:
         "Paged list of saved chats for a user (newest first). Optional `cursor` (Part 1) selects the page and overrides `page`.",
       inputSchema: {
@@ -236,6 +262,7 @@ export async function createMcpServer(): Promise<McpServer> {
   mcp.registerTool(
     "searchMyChats",
     {
+      annotations: TOOL_READ,
       description:
         "Semantic search over a user's saved chats using pgvector cosine distance on stored embeddings (most similar first).",
       inputSchema: {

@@ -7,6 +7,7 @@ import {
   RESOURCE_MIME_TYPE,
 } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import {
   BROWSE_MY_SAVED_CHATS_TOOL_NAME,
@@ -27,6 +28,21 @@ export const MCP_SERVER_INFO = {
 const packageRoot = path.join(fileURLToPath(new URL(".", import.meta.url)), "..");
 
 const WIDGET_MISSING_SNIPPET = "Widget bundle missing";
+
+/** MCP tool hints for ChatGPT / Apps SDK (aligned with chatvault-part2). */
+const TOOL_READ: ToolAnnotations = {
+  readOnlyHint: true,
+  openWorldHint: false,
+  destructiveHint: false,
+};
+
+const TOOL_SAVE: ToolAnnotations = {
+  readOnlyHint: false,
+  openWorldHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+};
+
 
 async function readWidgetHtml(): Promise<string> {
   const candidates = [
@@ -95,6 +111,7 @@ export function createMcpServer(): McpServer {
     server,
     BROWSE_MY_SAVED_CHATS_TOOL_NAME,
     {
+      annotations: TOOL_READ,
       description:
         "Open the ChatVault widget to browse saved chats (routing tool; passes viewer context to the UI).",
       inputSchema: {
@@ -128,6 +145,7 @@ export function createMcpServer(): McpServer {
   server.registerTool(
     "loadMyChats",
     {
+      annotations: TOOL_READ,
       description:
         "Paged list of saved chats for the ChatVault widget (hardcoded tutorial data).",
       inputSchema: {
@@ -159,6 +177,7 @@ export function createMcpServer(): McpServer {
   server.registerTool(
     "saveChat",
     {
+      annotations: TOOL_SAVE,
       description: "Stub: persist a chat (not implemented in Part 1 tutorial).",
       inputSchema: {
         title: z.string().optional(),
@@ -183,6 +202,7 @@ export function createMcpServer(): McpServer {
   server.registerTool(
     "searchMyChats",
     {
+      annotations: TOOL_READ,
       description: "Stub: search saved chats (not implemented in Part 1 tutorial).",
       inputSchema: {
         query: z.string().optional(),
