@@ -38,7 +38,7 @@ Define the Chat schema in Drizzle with fields for id, userId, title, timestamp, 
 
 ---
 
-Prompt7: Implement `loadChats` Tool
+Prompt7: Implement `loadMyChats` Tool
 
 Implement the `loadChats` MCP tool that retrieves paginated chat data from PostgreSQL. It should take userId (required), page (optional, default 1), and limit (optional, default 10) as parameters. Query the database for chats matching the userId, ordered by timestamp descending. Return the response in the exact same format as Part 1: `{ chats: [...], pagination: {...} }` wrapped in `_meta` structure. Handle pagination correctly (1-indexed pages) and edge cases like empty results.
 
@@ -49,7 +49,7 @@ Implement the `loadChats` MCP tool that retrieves paginated chat data from Postg
 
 ---
 
-Prompt8: Implement `searchChats` Tool (Vector Search)
+Prompt8: Implement `searchMyChats` Tool (Vector Search)
 
 Implement the `searchChats` MCP tool that performs vector similarity search on chat embeddings. Create a vector search query function that uses pgvector's cosine similarity operator to find chats matching a query embedding. The tool should take userId (required), query (required), and limit (optional, default 10) as parameters. Generate an embedding for the search query, perform the vector similarity search, and return results ordered by similarity (most similar first). Format the response similar to `loadChats` but include search-specific metadata. Handle cases where chats don't have embeddings gracefully.
 
