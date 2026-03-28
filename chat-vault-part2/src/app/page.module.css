@@ -22,12 +22,22 @@
   display: flex;
   flex: 1;
   width: 100%;
-  max-width: 800px;
+  max-width: 720px;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 32px;
   background-color: var(--foreground);
   padding: 120px 60px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
 
 .intro {
@@ -35,11 +45,12 @@
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
-  gap: 24px;
+  gap: 20px;
 }
 
 .intro h1 {
-  max-width: 320px;
+  max-width: 100%;
+  margin: 0;
   font-size: 40px;
   font-weight: 600;
   line-height: 48px;
@@ -49,11 +60,48 @@
 }
 
 .intro p {
-  max-width: 440px;
+  max-width: 100%;
+  margin: 0;
+  font-size: 17px;
+  line-height: 30px;
+  text-wrap: pretty;
+  color: var(--text-secondary);
+}
+
+.lead {
   font-size: 18px;
   line-height: 32px;
-  text-wrap: balance;
+}
+
+.points {
+  margin: 0;
+  padding: 0 0 0 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-size: 15px;
+  line-height: 26px;
   color: var(--text-secondary);
+}
+
+.points li {
+  padding-left: 0.25rem;
+}
+
+.pointTitle {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.code {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
+  color: var(--text-primary);
 }
 
 .intro a {
@@ -64,10 +112,11 @@
 .ctas {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   width: 100%;
-  max-width: 440px;
   gap: 16px;
   font-size: 14px;
+  margin-top: 8px;
 }
 
 .ctas a {
