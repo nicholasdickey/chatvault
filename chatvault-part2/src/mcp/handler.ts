@@ -33,7 +33,7 @@ export function logMcp(
 
 export async function createMcpServer(): Promise<Server> {
   const server = new Server(
-    { name: "chat-vault-part2", version: "0.1.0" },
+    { name: "chatvault-part2", version: "0.1.0" },
     {
       capabilities: {
         tools: {},
@@ -99,7 +99,7 @@ export async function handleMcpGet(request: Request): Promise<Response> {
       Response.json(
         {
           ok: true,
-          service: "chat-vault-part2-mcp",
+          service: "chatvault-part2-mcp",
           usage:
             "POST JSON-RPC initialize to this URL; see MCP Streamable HTTP spec.",
         },

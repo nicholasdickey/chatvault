@@ -1,6 +1,6 @@
 Title: ChatVault Backend – Apps SDK / MCP Vibe Engineering PROMPTS
 
-project name - chat-vault-part2
+project name - chatvault-part2
 
 This project uses the **generic backend MCP server prompts** defined in:
 
