@@ -35,6 +35,17 @@ export function getDb(): AppDatabase {
   return dbInstance;
 }
 
+
+/**
+ * Close the shared pg pool (e2e tests only; avoids Jest open handles).
+ */
+export async function closeDbPool(): Promise<void> {
+  dbInstance = undefined;
+  if (globalForDb.pool) {
+    await globalForDb.pool.end();
+    globalForDb.pool = undefined;
+  }
+}
 /** Shared Drizzle `db` instance (Prompt3 non-negotiable: all DB access through this). */
 export const db: AppDatabase = new Proxy({} as AppDatabase, {
   get(_target, prop, receiver) {

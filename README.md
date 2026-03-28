@@ -125,6 +125,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+
+
+---
+
+## Part 2 backend (`chatvault-part2`): local e2e tests (Prompt5 + Prompt9)
+
+1. Install and start Docker, then from `chatvault-part2` run `docker compose up -d` (Postgres + pgvector on port **5433**).
+2. Copy `.env.test.example` to `.env.test` and set `DATABASE_URL` (or set `DATABASE_URL` / `TEST_DATABASE_URL` in your shell).
+3. Run `pnpm db:migrate` so the schema exists.
+4. Run `pnpm test` from `chatvault-part2`. Tests without `OPENAI_API_KEY` still run protocol and `loadMyChats` coverage; add `OPENAI_API_KEY` to `.env.test` (or your environment) for `saveChat` / `searchMyChats` / workflow tests.
+
 ---
 
 ## Feedback & contributions
