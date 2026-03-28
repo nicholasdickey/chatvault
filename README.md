@@ -136,6 +136,10 @@ SOFTWARE.
 3. Run `pnpm db:migrate` so the schema exists.
 4. Run `pnpm test` from `chatvault-part2`. Tests without `OPENAI_API_KEY` still run protocol and `loadMyChats` coverage; add `OPENAI_API_KEY` to `.env.test` (or your environment) for `saveChat` / `searchMyChats` / workflow tests.
 
+### Part 2 backend: ChatGPT integration (Prompt10)
+
+For ngrok, Vercel, manual tool checks, and logging expectations, see [`chatvault-part2/docs/prompt10-chatgpt-integration.md`](chatvault-part2/docs/prompt10-chatgpt-integration.md).
+
 ---
 
 ## Feedback & contributions
