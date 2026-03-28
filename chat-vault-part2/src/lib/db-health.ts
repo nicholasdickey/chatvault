@@ -1,12 +1,11 @@
 import { sql } from "drizzle-orm";
 
-import { getDb } from "@/db";
+import { db } from "@/db";
 
 /**
  * Verifies connectivity and that pgvector is available (migration applied / extension enabled).
  */
 export async function verifyDatabaseOnStartup(): Promise<void> {
-  const db = getDb();
   await db.execute(sql`SELECT 1`);
   const result = await db.execute(
     sql`SELECT 1 AS ok FROM pg_extension WHERE extname = 'vector'`,

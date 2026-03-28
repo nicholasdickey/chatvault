@@ -21,7 +21,7 @@ function getPool(): Pool {
 let dbInstance: NodePgDatabase<Record<string, never>> | undefined;
 
 /**
- * Returns the shared Drizzle instance. All DB access must go through this.
+ * Returns the shared Drizzle instance. All DB access must go through `db` / `getDb()`.
  * Throws if DATABASE_URL is missing when first invoked.
  */
 export function getDb(): NodePgDatabase<Record<string, never>> {
@@ -30,3 +30,14 @@ export function getDb(): NodePgDatabase<Record<string, never>> {
   }
   return dbInstance;
 }
+
+/** Shared Drizzle `db` instance (Prompt3 non-negotiable: all DB access through this). */
+export const db: NodePgDatabase<Record<string, never>> = new Proxy(
+  {} as NodePgDatabase<Record<string, never>>,
+  {
+    get(_target, prop, receiver) {
+      const instance = getDb();
+      return Reflect.get(instance as object, prop, receiver);
+    },
+  },
+);
