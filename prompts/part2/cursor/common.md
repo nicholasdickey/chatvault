@@ -2,11 +2,11 @@ Title: Generic Backend MCP Server with Database PROMPTS
 
 Prerequisites:
 
-- git
-- ngrok
-- Node.js 18+
-- PostgreSQL (local for testing, Neon for production)
-- Cursor (these prompts are tuned for running inside the Cursor editor)
+- git (free)
+- ngrok (optional for tutorial, recommended for development, free account)
+- Node LTS (free)
+- Neon PostgreSQL free account
+- Cursor (these prompts are tuned for running inside the Cursor IDE) (free?)
 - ChatGPT Plus membership. OpenAI API Key (to use with embeddings API)
 
 This document defines **generic prompts** for building a backend MCP server with database integration (PostgreSQL + pgvector).  
@@ -19,7 +19,7 @@ Project-specific behavior (tools, data model, schema) should be defined in that 
 - **Design for graceful degradation and bounded behavior**: Database operations should handle connection failures, query timeouts, and constraint violations in a controlled, observable way (clear error messages, no infinite retries or unbounded logging).
 - **Separate concerns**: Keep database schema, MCP protocol handling, and business logic in separate modules. This makes testing, debugging, and future refactoring easier.
 
-project name - `${PROJECT_NAME}` - default chatvault-part2
+project name - `${PROJECT_NAME}`
 
 ---
 
@@ -29,15 +29,13 @@ Instruct the user to set up a PostgreSQL database in Neon for development and pr
 
 ---
 
-Prompt2: Initialize Node.js Project with Drizzle + Apps SDK
+Prompt2: Initialize Next.js / Node.js Project with Drizzle + MCP SDK
 
-Create a new Node.js project for the backend MCP server. Set it up as a sibling to any existing frontend/widget projects (for example, if you have `chatvault-part1`, create `chatvault-part2` in the same parent directory). Initialize it with TypeScript, Drizzle ORM, and the Apps SDK. Install the necessary dependencies for PostgreSQL, pgvector support, and environment variable management.
-
---
+Create a new Node.js project for the backend MCP server. Use Next.js for mcp api routing. The server will be deployed to Vercel in production and run in a standalone Node in dev and test. Set it up as a sibling to any existing frontend/widget projects (for example, if you have `chatvault-part1`, create `chatvault-part2` in the same parent directory). Initialize it with TypeScript, Drizzle ORM, and the Apps SDK. Install the necessary dependencies for PostgreSQL, pgvector support, and environment variable management. Create vercel deployment with /mcp endpoint.
 
 Prompt3: Install Dependencies + Initialize Drizzle
 
-Install all dependencies and set up Drizzle ORM. Configure Drizzle to connect to your Neon database, create the initial schema file (we'll add tables in the project-specific prompts), and set up a database connection utility. Create a migration to enable the pgvector extension. Test the database connection on server startup and verify pgvector is available.
+Install all dependencies and set up Drizzle ORM. Configure Drizzle to connect to your Neon database, create the initial schema file (we'll add tables in the project-specific prompts), and set up a database connection utility. Create a migration to enable the pgvector extension. Test the database connection on server startup and verify pgvector is available. We will be using db:generate and db:migrate to run migrations in prod/dev db manually.
 
 **Non-negotiables:**
 
@@ -48,9 +46,10 @@ Install all dependencies and set up Drizzle ORM. Configure Drizzle to connect to
 - Schema file must be in `src/db/schema.ts`
 
 ---
+
 Prompt4: Create Basic MCP HTTP Streaming Server
 
-Build a minimal MCP server with HTTP streaming transport. Create an HTTP server that handles `POST /mcp` for MCP requests and `OPTIONS /mcp` for CORS preflight. Use the `@modelcontextprotocol/sdk` Server instance internally.
+Build a minimal MCP server with HTTP streaming transport. Create an HTTP server (api/mcp) that handles `POST /mcp` for MCP requests and `OPTIONS /mcp` for CORS preflight. Use the `@modelcontextprotocol/sdk` Server instance internally.
 
 **Non-negotiables:**
 
@@ -64,15 +63,13 @@ Build a minimal MCP server with HTTP streaming transport. Create an HTTP server 
 
 ---
 
-
-
 Prompt5: Setup Generic Test Framework
 
 Set up a local PostgreSQL test database using Docker. Check if Docker is installed, and if not, guide the user to install it. Create a Docker Compose file or docker run command to start a PostgreSQL container with pgvector extension enabled. Configure the test database connection string and verify the database is accessible.
 
 Then set up Jest for end-to-end testing. Create an MCP client test utility that can send requests to the server and manage session IDs. Create server helper utilities to start and stop the test server, and database helpers to set up and tear down a test database (using the local PostgreSQL Docker container).
 
-Set up test database lifecycle: in `beforeAll`, run database migrations to create the schema, then truncate all tables to ensure a clean state. In `afterAll`, clean up any remaining test data. Each test should start with a fresh database state.
+Set up test database lifecycle: in `beforeAll`, run database migrations (db:migrate) to create the schema, then truncate all tables to ensure a clean state. In `afterAll`, clean up any remaining test data. Each test should start with a fresh database state.
 
 Write tests for the initialize handshake, session management, JSON-RPC compliance, and the empty tools/list and resources/list handlers.
 
